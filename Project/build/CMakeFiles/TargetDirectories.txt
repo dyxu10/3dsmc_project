@@ -1,0 +1,4 @@
+/config/workspace/Exercises/Project/build/CMakeFiles/main.dir
+/config/workspace/Exercises/Project/build/CMakeFiles/main_landmarks.dir
+/config/workspace/Exercises/Project/build/CMakeFiles/edit_cache.dir
+/config/workspace/Exercises/Project/build/CMakeFiles/rebuild_cache.dir
