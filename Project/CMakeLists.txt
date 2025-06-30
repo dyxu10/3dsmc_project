@@ -36,7 +36,12 @@ find_package(OpenCV REQUIRED)
 target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(main PRIVATE ${OpenCV_LIBS})
 
-# Add test_alignment executable
-add_executable(test_alignment test_alignment.cpp)
-target_include_directories(test_alignment PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(test_alignment PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
+# Add Rigid_alignment_RT executable
+add_executable(Rigid_alignment_RT Rigid_alignment_RT.cpp)
+target_include_directories(Rigid_alignment_RT PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+
+add_executable(extract_vertices extract_vertices_under4.3.cpp)
+target_link_libraries(extract_vertices Eigen3::Eigen)
+
+add_executable(transform_off transform_off.cpp)
+target_link_libraries(transform_off PRIVATE Eigen3::Eigen)
