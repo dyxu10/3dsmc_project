@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import chumpy
+import os
 
 def save_landmarks(path, landmarks):
     with open(path, 'w') as f:
@@ -8,7 +9,8 @@ def save_landmarks(path, landmarks):
             f.write(f"{i+1} {lm[0]} {lm[1]} {lm[2]}\n")
 
 # Load FLAME model
-pkl_path = "./model/FLAME2023/flame2023.pkl"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+pkl_path = script_dir + "/model/FLAME2023/flame2023.pkl"
 with open(pkl_path, "rb") as f:
     model = pickle.load(f, encoding='latin1')
 
@@ -21,7 +23,7 @@ betas = chumpy.random.randn(400)
 v_shaped = v_template# + shapedirs.dot(betas)
 
 # Load mediapipe landmark embedding
-embedding_path = "./model/mediapipe_landmark_embedding/mediapipe_landmark_embedding.npz"
+embedding_path = script_dir + "/model/mediapipe_landmark_embedding/mediapipe_landmark_embedding.npz"
 embedding = np.load(embedding_path)
 print(type(embedding))
 print(embedding.keys())

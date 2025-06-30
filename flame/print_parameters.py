@@ -2,9 +2,11 @@ import pickle
 import chumpy
 import numpy as np
 from scipy.sparse import spmatrix
+import os
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 # Replace with your actual .pkl file path
-pkl_path = "./model/FLAME2023/flame2023.pkl"
+pkl_path = script_dir + "/model/FLAME2023/flame2023.pkl"
 
 with open(pkl_path, "rb") as f:
     data = pickle.load(f, encoding='latin1')  # encoding='latin1' helps with Python 2 -> 3 compatibility

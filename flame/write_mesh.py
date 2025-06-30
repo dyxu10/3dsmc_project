@@ -2,10 +2,15 @@ import pickle
 import chumpy
 import chumpy.ch_random
 import numpy as np
+import os
 
 file_name = "flame2023_no_jaw"
 
-with open("./model/FLAME2023/" + file_name + ".pkl", "rb") as f:
+# 获取当前脚本的绝对路径
+script_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(script_dir, "model", "FLAME2023", file_name + ".pkl")
+
+with open(model_path, "rb") as f:
     model = pickle.load(f, encoding='latin1')
 
 v_template = model['v_template']
@@ -26,5 +31,5 @@ def save_obj(path, vertices, faces):
         for face in faces:
             f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
 
-save_obj(f"./mesh/{file_name}.obj", np.asarray(v_shaped), faces)
+save_obj(script_dir + f"/mesh/{file_name}.obj", np.asarray(v_shaped), faces)
 print(f"Exported {file_name}.obj")

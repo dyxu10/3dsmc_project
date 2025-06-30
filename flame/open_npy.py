@@ -56,11 +56,12 @@ def visualize_landmarks(image_path, landmark_txt_path):
     cv2.destroyAllWindows()
 
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
-    landmark_npy_path = "data/color/PIPnet_landmarks/00000.npy"  
-    landmark_txt_path = "out/00000.txt"
-    image_path = "data/color/00000.png"
+    landmark_npy_path = script_dir + "/data/color/PIPnet_landmarks/00000.npy"  
+    landmark_txt_path = script_dir + "/out/00000.txt"
+    image_path = script_dir + "/data/color/00000.png"
 
     convert_npy_to_txt(landmark_npy_path, landmark_txt_path)
     visualize_landmarks(image_path, landmark_txt_path)
