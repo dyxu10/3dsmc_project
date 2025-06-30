@@ -1,4 +1,0 @@
-/config/workspace/Exercise/Project/build/CMakeFiles/main.dir
-/config/workspace/Exercise/Project/build/CMakeFiles/test_alignment.dir
-/config/workspace/Exercise/Project/build/CMakeFiles/edit_cache.dir
-/config/workspace/Exercise/Project/build/CMakeFiles/rebuild_cache.dir
