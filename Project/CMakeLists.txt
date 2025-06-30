@@ -25,6 +25,7 @@ set(HEADERS )
 # Create executable
 add_executable(main ${SOURCES} ${HEADERS})
 
+
 # Include Eigen headers
 target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS})
 
@@ -34,3 +35,8 @@ target_link_libraries(main PRIVATE Eigen3::Eigen)
 find_package(OpenCV REQUIRED)
 target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(main PRIVATE ${OpenCV_LIBS})
+
+# Add test_alignment executable
+add_executable(test_alignment test_alignment.cpp)
+target_include_directories(test_alignment PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(test_alignment PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
