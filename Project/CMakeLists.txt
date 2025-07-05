@@ -1,11 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the project name
-project(MyProject)
+project(Project_3DSMC)
 
-# Options
-set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
-set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to installed Eigen")
 
 # Set C++ flags
 set(CMAKE_CXX_STANDARD 14)
@@ -13,24 +10,48 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find Eigen3 (will use Eigen3_DIR if set above)
 find_package(Eigen3 REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(OpenCV REQUIRED)
 
-# Source and header files
-set(SOURCES main.cpp)
+# Sources
+set(SOURCES
+    main.cpp
+    read_flame.cpp
+)
 
-# Optional: only list public headers if needed
-# If "Eigen.h" is your own file, include it. But not needed for Eigen itself.
-# Remove if you're mistakenly listing Eigen's internal headers.
-set(HEADERS )
+file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
 
 # Create executable
-add_executable(main ${SOURCES} ${HEADERS})
+add_executable(main main.cpp ${CNPY_SOURCES})
 
-# Include Eigen headers
-target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS})
+# Include directories
+target_include_directories(main PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/cnpy        # correct path to cnpy.h
+    ${CMAKE_CURRENT_SOURCE_DIR}             # for your own headers
+    ${EIGEN3_INCLUDE_DIRS}                  # Eigen3
+    ${OpenCV_INCLUDE_DIRS}
+)
 
-# Link Eigen (not strictly required for a header-only library, but fine)
-target_link_libraries(main PRIVATE Eigen3::Eigen)
 
-find_package(OpenCV REQUIRED)
-target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(main PRIVATE ${OpenCV_LIBS})
+# Link libraries
+target_link_libraries(main PRIVATE
+    ZLIB::ZLIB
+    Eigen3::Eigen
+    ${OpenCV_LIBS}
+)
+
+add_executable(flame read_flame.cpp ${CNPY_SOURCES})
+# Include directories
+target_include_directories(flame PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/cnpy        # correct path to cnpy.h
+    ${CMAKE_CURRENT_SOURCE_DIR}             # for your own headers
+    ${EIGEN3_INCLUDE_DIRS}                  # Eigen3
+    ${OpenCV_INCLUDE_DIRS}
+)
+
+# Link libraries
+target_link_libraries(flame PRIVATE
+    ZLIB::ZLIB
+    Eigen3::Eigen
+    ${OpenCV_LIBS}
+)
