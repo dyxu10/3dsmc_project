@@ -1,0 +1,7 @@
+images/ 
+output/
+.DS_Store
+
+Project/build
+Project/data
+Project/model
