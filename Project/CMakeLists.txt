@@ -20,6 +20,7 @@ set(SOURCES
 )
 
 file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
+list(REMOVE_ITEM CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/example1.cpp)
 
 # Create executable
 add_executable(main main.cpp ${CNPY_SOURCES})

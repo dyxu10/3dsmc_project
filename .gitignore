@@ -4,4 +4,6 @@ output/
 
 Project/build
 Project/data
-Project/model
+Project/cnpy
+
+flame39-env/
