@@ -1,3 +1,4 @@
+//Rigid Alignment(According to RT)
 
 #include <Eigen/Dense>
 #include <iostream>
@@ -60,8 +61,8 @@ Eigen::MatrixXd ReadPointsFromTXT(const std::string& filename) {
 
 int main() {
     
-    Eigen::MatrixXd source = ReadPointsFromTXT("../data/source.txt");
-    Eigen::MatrixXd target = ReadPointsFromTXT("../data/target.txt");
+    Eigen::MatrixXd source = ReadPointsFromTXT("../out/scaled_pip_matching_rgb.txt");
+    Eigen::MatrixXd target = ReadPointsFromTXT("../data/flame_matching.txt");
 
     Eigen::Matrix3d R;
     Eigen::Vector3d T;

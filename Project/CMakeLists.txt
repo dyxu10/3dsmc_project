@@ -45,3 +45,14 @@ target_link_libraries(extract_vertices Eigen3::Eigen)
 
 add_executable(transform_off transform_off.cpp)
 target_link_libraries(transform_off PRIVATE Eigen3::Eigen)
+
+add_executable(to_off to_off.cpp)
+target_include_directories(to_off PRIVATE ${EIGEN3_INCLUDE_DIRS})
+target_link_libraries(to_off PRIVATE Eigen3::Eigen)
+
+add_executable(transform_pip_to_rgb transform_pip_to_rgb.cpp)
+target_link_libraries(transform_pip_to_rgb PRIVATE Eigen3::Eigen)
+
+add_executable(scale scale.cpp)
+target_include_directories(scale PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(scale PRIVATE Eigen3::Eigen ${OpenCV_LIBS})

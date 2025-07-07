@@ -123,11 +123,11 @@ int main() {
         std::vector<Vertex> vertices;
         std::vector<Face> faces;
 
-        ReadOFF("../out/output_1.off", vertices, faces);
+        ReadOFF("../out/scaled_output_1.off", vertices, faces);
         ApplyRT(vertices, R, T);
-        WriteOFF("../out/output_transformed.off", vertices, faces);
+        WriteOFF("../out/output_transformed_1.off", vertices, faces);
 
-        std::cout << "Transform successful: output_transformed_with_faces.off\n";
+        std::cout << "Transform successful: output_transformed.off\n";
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return -1;

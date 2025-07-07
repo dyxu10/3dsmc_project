@@ -67,7 +67,6 @@ int main() {
         }
     }
 
-    // 重建 faces，仅保留所有顶点都在新索引中的面
     std::vector<Face> filteredFaces;
     for (const auto& f : allFaces) {
         bool valid = true;

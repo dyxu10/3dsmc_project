@@ -155,7 +155,6 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
     return intrinsic;
 }
 
-
 int main() {
     std::string colorPath = "../data/color/00001.png";
     std::string depthPath = "../data/depth/00001.png";
