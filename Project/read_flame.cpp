@@ -47,7 +47,7 @@ int main() {
     const double* v_data = v_template_arr.data<double>();
 
     // Load faces
-    cnpy::NpyArray faces_arr = cnpy::npz_load(npz_path, "f");
+    cnpy::NpyArray faces_arr = cnpy::npz_load(npz_path, "faces");
     if (faces_arr.shape.size() != 2 || faces_arr.shape[1] != 3) {
         std::cerr << "Unexpected faces shape!" << std::endl;
         return 1;
