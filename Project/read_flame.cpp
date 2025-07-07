@@ -8,8 +8,6 @@
 
 // Read flame from npz file and exports to obj file. Generates random face if GENERATE_RANDOM_FACE set to true, generic face otherwise.
 
-const bool GENERATE_RANDOM_FACE = true;
-
 
 // Save vertices & faces to OBJ
 void save_obj(const std::string& path,
@@ -34,6 +32,8 @@ void save_obj(const std::string& path,
 }
 
 int main() {
+    bool GENERATE_RANDOM_FACE = false;
+
     std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
 
     // Load v_template
@@ -83,11 +83,12 @@ int main() {
         betas[i] =normal_dist(rng);  // random ~ N(0,1)
     }
 
-
     // Compute v_shaped = v_template + sum_i shapedirs[:, :, i] * betas[i]
     std::vector<Eigen::Vector3f> vertices(num_vertices);
-    if (GENERATE_RANDOM_FACE){
 
+    std::cout << "randomface: " << GENERATE_RANDOM_FACE << std::endl;
+
+    if (GENERATE_RANDOM_FACE==true) {
         for (size_t v = 0; v < num_vertices; ++v) {
             Eigen::Vector3d v_shaped(v_data[v * 3 + 0],
                                     v_data[v * 3 + 1],
@@ -109,6 +110,21 @@ int main() {
         }
         std::cout << "Exporting neutral v_template mesh." << std::endl;
     }
+
+    // === Create 3xN matrix from vertices ===
+
+    // Create a 3 x num_vertices matrix (double precision)
+    Eigen::MatrixXd face_points(3, num_vertices);
+
+    for (size_t v = 0; v < num_vertices; ++v) {
+        face_points(0, v) = static_cast<double>(vertices[v].x());
+        face_points(1, v) = static_cast<double>(vertices[v].y());
+        face_points(2, v) = static_cast<double>(vertices[v].z());
+    }
+
+    // Print first 3 points as sanity check
+    std::cout << "First 3 points in 3xN matrix (columns 0,1,2):\n";
+    std::cout << face_points.block(0, 0, 3, 3) << std::endl;
 
     save_obj("../model/mesh/flame2023_random.obj", vertices, faces);
 
