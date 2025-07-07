@@ -1,3 +1,6 @@
 images/ 
 output/
+model/
+data/
+mesh/
 .DS_Store
