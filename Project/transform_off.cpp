@@ -1,3 +1,5 @@
+//对off文件进行RT变化
+
 #include <fstream>
 #include <sstream>
 #include <Eigen/Dense>
@@ -125,7 +127,7 @@ int main() {
 
         ReadOFF("../out/scaled_output_1.off", vertices, faces);
         ApplyRT(vertices, R, T);
-        WriteOFF("../out/output_transformed_1.off", vertices, faces);
+        WriteOFF("../out/output_1_transform.off", vertices, faces);
 
         std::cout << "Transform successful: output_transformed.off\n";
     } catch (const std::exception& e) {

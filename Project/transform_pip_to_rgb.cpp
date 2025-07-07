@@ -1,3 +1,5 @@
+//将landmark（depth camera）变化到 rgb camera
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -84,8 +86,8 @@ int main() {
         // 路径
         std::string depthExtrPath = "../data/camera/c00_depth_extrinsic.txt";
         std::string colorExtrPath = "../data/camera/c00_color_extrinsic.txt";
-        std::string inputPath = "../data/pip_matching.txt";
-        std::string outputPath = "../out/pip_matching_rgb.txt";
+        std::string inputPath = "../out/landmarks3D.txt";
+        std::string outputPath = "../data/landmarks3D.txt";
 
         // 读取并转为4x4
 

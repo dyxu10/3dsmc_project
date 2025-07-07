@@ -155,6 +155,40 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
     return intrinsic;
 }
 
+std::vector<Eigen::Vector3f> Extract3DLandmarksFromDepth(
+    const std::string& landmark_path,
+    const cv::Mat& depth,
+    const Eigen::Matrix3f& K_depth)
+{
+    std::ifstream infile(landmark_path);
+    std::vector<Eigen::Vector3f> landmarks3D;
+    float x, y;
+
+    while (infile >> x >> y) {
+        int px = static_cast<int>(x);
+        int py = static_cast<int>(y);
+        if (px < 0 || py < 0 || px >= depth.cols || py >= depth.rows) {
+            landmarks3D.emplace_back(Eigen::Vector3f::Zero());
+            continue;
+        }
+
+        ushort d_raw = depth.at<ushort>(py, px);
+        float d = d_raw / 1000.0f;
+        if (d_raw == 0) {
+            landmarks3D.emplace_back(Eigen::Vector3f::Constant(MINF));
+            continue;
+        }
+
+        float X = (px - K_depth(0,2)) * d / K_depth(0,0);
+        float Y = (py - K_depth(1,2)) * d / K_depth(1,1);
+        float Z = d;
+
+        landmarks3D.emplace_back(Eigen::Vector3f(X, Y, Z));
+    }
+
+    return landmarks3D;
+}
+
 int main() {
     std::string colorPath = "../data/color/00001.png";
     std::string depthPath = "../data/depth/00001.png";
@@ -225,5 +259,15 @@ int main() {
     }
 
     WriteMesh(vertices, width, height, "../out/output.off");
+
+    //还原3D Landmark（depth camera）
+
+    std::string landmarkPath = "../data/2d_mediapipe_105_landmarks.txt";
+    auto landmarks3D = Extract3DLandmarksFromDepth(landmarkPath, depth, K_depth);
+
+    
+    std::ofstream out("../out/landmarks3D.txt");
+    for (const auto& p : landmarks3D)
+        out << p.transpose() << std::endl;
     return 0;
 }

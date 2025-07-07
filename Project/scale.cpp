@@ -1,3 +1,6 @@
+// scale down our 3d mesh
+
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -98,8 +101,8 @@ void WriteCOFF(const std::string& filename,
 int main() {
     try {
         // 1. Load landmarks
-        Eigen::MatrixXf your_lms = LoadLandmarks("../out/pip_matching_rgb.txt");
-        Eigen::MatrixXf flame_lms = LoadLandmarks("../data/flame_matching.txt");
+        Eigen::MatrixXf your_lms = LoadLandmarks("../data/Mediapip_source.txt");
+        Eigen::MatrixXf flame_lms = LoadLandmarks("../data/flame_mediapipe_landmarks.txt");
         if (your_lms.rows() != flame_lms.rows())
             throw std::runtime_error("Landmark counts do not match");
 
@@ -128,19 +131,19 @@ int main() {
 
 
          // 6. Scale landmarks as well
-        for (int i = 0; i < your_lms.rows(); ++i) {
+         for (int i = 0; i < your_lms.rows(); ++i) {
             your_lms.row(i) *= scale;
-        }
+        } 
 
         // 7. Save scaled landmarks
-        std::ofstream out_lms("../out/scaled_pip_matching_rgb.txt");
+         std::ofstream out_lms("../out/scaled_mediapip_matching_rgb.txt");
         if (!out_lms.is_open()) throw std::runtime_error("Cannot write landmarks");
         for (int i = 0; i < your_lms.rows(); ++i) {
             out_lms << your_lms(i, 0) << " " << your_lms(i, 1) << " " << your_lms(i, 2) << "\n";
         }
         out_lms.close();
         std::cout << "Landmarks scaled and saved as scaled_pip_matching.txt\n";
-
+ 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
         return 1;

@@ -1,3 +1,5 @@
+//transform txt to off 可视化
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -10,8 +12,8 @@ struct Vertex {
 };
 
 int main() {
-    std::string input_txt = "../out/pip_matching_rgb.txt";
-    std::string output_off = "../out/pip_matching_rgb.off";
+    std::string input_txt = "../data/flame_mediapipe_landmarks.txt";
+    std::string output_off = "../data/flame_mediapipe_landmarks.off";
 
     std::ifstream in(input_txt);
     if (!in.is_open()) {

@@ -59,10 +59,42 @@ Eigen::MatrixXd ReadPointsFromTXT(const std::string& filename) {
     return mat;
 }
 
+Eigen::MatrixXd ReadPointsFromOFF(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in.is_open()) {
+        throw std::runtime_error("Cannot open OFF file: " + filename);
+    }
+
+    std::string header;
+    std::getline(in, header);
+    if (header != "OFF" && header != "COFF") {
+        throw std::runtime_error("Invalid OFF/COFF header in: " + filename);
+    }
+
+    int numVertices, numFaces, dummy;
+    in >> numVertices >> numFaces >> dummy;
+
+    Eigen::MatrixXd points(numVertices, 3);
+    for (int i = 0; i < numVertices; ++i) {
+        double x, y, z;
+        in >> x >> y >> z;
+        points(i, 0) = x;
+        points(i, 1) = y;
+        points(i, 2) = z;
+
+        if (header == "COFF") {
+            int r, g, b, a;
+            in >> r >> g >> b >> a;  // skip color
+        }
+    }
+
+    return points;
+}
+
 int main() {
     
-    Eigen::MatrixXd source = ReadPointsFromTXT("../out/scaled_pip_matching_rgb.txt");
-    Eigen::MatrixXd target = ReadPointsFromTXT("../data/flame_matching.txt");
+    Eigen::MatrixXd source = ReadPointsFromTXT("../data/Landmark/scaled_mediapip_source.txt");
+    Eigen::MatrixXd target = ReadPointsFromTXT("../data/Landmark/flame_mediapipe_landmarks.txt");
 
     Eigen::Matrix3d R;
     Eigen::Vector3d T;
