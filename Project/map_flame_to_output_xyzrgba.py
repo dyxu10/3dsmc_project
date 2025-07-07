@@ -4,7 +4,7 @@ from scipy.spatial import cKDTree
 
 # ======= Config ========
 base_dir = Path(__file__).resolve().parent
-mesh_off_path = base_dir / "out" / "output_transformed_1.off"
+mesh_off_path = base_dir / "out" / "output_1_transform.off"
 flame_obj_path = base_dir / "model" / "mesh" / "flame2023_random.obj"
 out_dir = base_dir / "out"
 out_dir.mkdir(parents=True, exist_ok=True)
