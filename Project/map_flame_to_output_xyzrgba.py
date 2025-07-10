@@ -39,29 +39,59 @@ with flame_obj_path.open() as f:
 flame_verts = np.asarray(flame_verts, dtype=np.float64)
 print("   →", flame_verts.shape[0], "vertices")
 
-# ======= Build mapping FLAME ➜ OFF ========
+# ======= Build unique 1-to-1 mapping FLAME ➜ OFF ========
+print("🚀 Fast matching with reuse-aware KDTree search...")
+
+matched_flame_ids = []
+matched_output_ids = []
+matched_dists = []
 tree = cKDTree(off_xyz)
-dists, indices = tree.query(flame_verts, k=1)
+used = np.zeros(len(off_xyz), dtype=bool)
+
+for flame_id, f_vert in enumerate(flame_verts):
+    k = 10000
+    dists, indices = tree.query(f_vert, k=k)
+    if k == 1:
+        dists = [dists]
+        indices = [indices]
+
+    found = False
+    for dist, idx in zip(dists, indices):
+        if not used[idx]:
+            matched_flame_ids.append(flame_id)
+            matched_output_ids.append(idx)
+            matched_dists.append(dist)
+            used[idx] = True
+            found = True
+            break
+
+    if not found:
+        print(f"⚠️  FLAME vertex {flame_id} could not find unused target point among top-{k} nearest.")
+
+print(f"✅ Matched {len(matched_flame_ids)} FLAME vertices with unique OFF points.")
+
 
 # ======= Save mapping TXT ========
-mapping_txt = out_dir / "flame2output_vertex_mapping.txt"
+mapping_txt = out_dir / "flame2output_vertex_mapping_unique.txt"
 with mapping_txt.open("w") as fout:
     fout.write("flame_vert_id  off_vert_id  dist\n")
-    for flame_id, (off_id, d) in enumerate(zip(indices, dists)):
+    for flame_id, off_id, d in zip(matched_flame_ids, matched_output_ids, matched_dists):
         fout.write(f"{flame_id:7d}     {off_id:7d}   {d:.6f}\n")
 print("✔️  Mapping saved to", mapping_txt)
 
 # ======= Save points-only TXT (no color) ========
-mapped_xyz = off_xyz[indices]
-np.savetxt(out_dir / "flame2output_points_xyz.txt",
+mapped_xyz = off_xyz[matched_output_ids]
+np.savetxt(out_dir / "flame2output_points_xyz_unique.txt",
            mapped_xyz,
            fmt="%.6f")
 
 # ======= Save xyz+rgba TXT ========
-mapped_rgba = off_rgba[indices]
-np.savetxt(out_dir / "flame2output_points_xyzrgba.txt",
+mapped_rgba = off_rgba[matched_output_ids]
+np.savetxt(out_dir / "flame2output_points_xyzrgba_unique.txt",
            np.hstack([mapped_xyz, mapped_rgba]),
            fmt="%.6f %.6f %.6f %d %d %d %d")
 
-print("✅ Saved xyz and xyzrgba point lists.")
+np.savetxt(out_dir / "matched_flame_indices.txt", matched_flame_ids, fmt="%d")
 
+
+print("✅ Saved uniquely matched xyz and xyzrgba point lists.")
