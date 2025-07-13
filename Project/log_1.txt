@@ -1,0 +1,45 @@
+iter      cost      cost_change  |gradient|   |step|    tr_ratio  tr_radius  ls_iter  iter_time  total_time
+   0  3.096196e+01    0.00e+00    9.05e-01   0.00e+00   0.00e+00  1.00e+04        0    5.72e+02    5.72e+02
+   1  1.530654e+01    1.57e+01    7.46e-05   0.00e+00   1.00e+00  3.00e+04        1    5.68e+02    1.14e+03
+   2  1.530650e+01    4.25e-05    4.83e-07   1.07e+01   1.00e+00  9.00e+04        1    5.68e+02    1.71e+03
+
+Solver Summary (v 2.2.0-eigen-(3.4.0)-lapack-suitesparse-(7.6.1)-eigensparse)
+
+                                     Original                  Reduced
+Parameter blocks                            1                        1
+Parameters                                400                      400
+Residual blocks                          5023                     5023
+Residuals                               15069                    15069
+
+Minimizer                        TRUST_REGION
+
+Dense linear algebra library            EIGEN 
+Trust region strategy     LEVENBERG_MARQUARDT
+                                        Given                     Used
+Linear solver                        DENSE_QR                 DENSE_QR
+Threads                                     1                        1
+Linear solver ordering              AUTOMATIC                        1
+
+Cost:
+Initial                          3.096196e+01
+Final                            1.530650e+01
+Change                           1.565547e+01
+
+Minimizer iterations                        3
+Successful steps                            3
+Unsuccessful steps                          0
+
+Time (in seconds):
+Preprocessor                         0.000641
+
+  Residual only evaluation           0.093241 (3)
+  Jacobian & residual evaluation  1706.625881 (3)
+  Linear solver                      1.355490 (3)
+Minimizer                         1708.181726
+
+Postprocessor                        0.000109
+Total                             1708.182476
+
+Termination:                      CONVERGENCE (Function tolerance reached. |cost_change|/cost: 8.773081e-10 <= 1.000000e-06)
+
+Final loss (Ceres style, cost): 15.3065
