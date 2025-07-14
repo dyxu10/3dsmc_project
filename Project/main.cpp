@@ -47,6 +47,7 @@ bool WriteMesh(const std::vector<Vertex>& vertices, int width, int height, const
     float threshold = 0.01f;
     float thresholdSqr = threshold * threshold;
 
+
     for (int y = 0; y < height - 1; ++y) {
         for (int x = 0; x < width - 1; ++x) {
             int i0 = y * width + x;
@@ -110,7 +111,7 @@ Eigen::Matrix<float, 3, 4> ReadExtrinsics(const std::string& path) {
         rotation(i / 3, i % 3) = vals[i];
     }
     for (int i = 0; i < 3; ++i) {
-        translation(i) = vals[9 + i];
+        translation(i) = vals[9 + i] / 1000.0f;  // Convert from mm to meters
     }
 
     Eigen::Matrix<float, 3, 4> extrinsic;
@@ -156,70 +157,75 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
 }
 
 int main() {
-    std::string colorPath = "../data/color/00001.png";
-    std::string depthPath = "../data/depth/00001.png";
+    std::string colorPath = "../data/color/00002.png";
+    std::string depthPath = "../data/depth/00002.png";
 
+    std::string depthIntrPath = "../data/camera/c00_color_intrinsic.txt";
     std::string colorIntrPath = "../data/camera/c00_color_intrinsic.txt";
-    std::string colorExtrPath = "../data/camera/c00_color_extrinsic.txt";
-
-    std::string depthIntrPath = "../data/camera/c00_depth_intrinsic.txt";
-    std::string depthExtrPath = "../data/camera/c00_depth_extrinsic.txt";
-
-    Matrix3f K_color = ReadIntrinsics(colorIntrPath);
-    Matrix<float, 3, 4> E_color = ReadExtrinsics(colorExtrPath);
 
     Matrix3f K_depth = ReadIntrinsics(depthIntrPath);
-    Matrix<float, 3, 4> E_depth = ReadExtrinsics(depthExtrPath);
-
-    Matrix4f E_color_4x4 = ConvertExtrinsicsToHomogeneous(E_color);
-    Matrix4f E_depth_4x4 = ConvertExtrinsicsToHomogeneous(E_depth);
-
-    std::cout << "E_color:\n" << E_color << std::endl;
-    std::cout << "E_depth:\n" << E_depth << std::endl;
+    Matrix3f K_color = ReadIntrinsics(colorIntrPath);
 
     std::cout << "K_color:\n" << K_color << std::endl;
     std::cout << "K_depth:\n" << K_depth << std::endl;
 
+    std::string depthExtrPath = "../data/camera/c00_depth_extrinsic.txt";
+    std::string colorExtrPath = "../data/camera/c00_color_extrinsic.txt";
 
-    // Matrix4f E = E_color_4x4; the same for E_depth = Identity
-    Matrix4f E = E_color_4x4 * E_depth_4x4.inverse();
+    auto E_depth = ReadExtrinsics(depthExtrPath);
+    auto E_color = ReadExtrinsics(colorExtrPath);
+
+    auto E_depth_4x4 = ConvertExtrinsicsToHomogeneous(E_depth);
+    auto E_color_4x4 = ConvertExtrinsicsToHomogeneous(E_color);
+
+    std::cout << "E_color:\n" << E_color << std::endl;
+    std::cout << "E_depth:\n" << E_depth << std::endl;
 
     auto depth = imread(depthPath, IMREAD_UNCHANGED); 
     auto color = imread(colorPath, IMREAD_UNCHANGED); 
+
+
     
     std::cout << "color image type:\n" << typeid(color).name() << std::endl;
     std::cout << "depth image type:\n" << typeid(depth).name() << std::endl;
-    
+    std::cout << "depth type: " << depth.type() << " (CV_16U is " << CV_16U << ", CV_32F is " << CV_32F << ")" << std::endl;
+
     if (depth.empty() || color.empty()) {
         std::cerr << "Failed to load images.\n";
         return -1;
     }
 
-    int width = depth.cols, height = depth.rows;
+    int width = depth.cols;
+    int height = depth.rows;
     std::vector<Vertex> vertices(width * height);
 
+    // DPHM-style approach: work directly in depth camera coordinates
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int idx = y * width + x;
             ushort d_raw = depth.at<ushort>(y, x);
-            float d = d_raw / 1000.0f;  // convert to meters
+            float d = d_raw / 1000.0f; //convert to meters
 
-            if (d_raw == 0) {
+            if (d_raw >= 700) {
                 vertices[idx].position = Vector4f(MINF, MINF, MINF, MINF);
                 vertices[idx].color = Vector4uc(0, 0, 0, 0);
                 continue;
             }
 
+
             float X = (x - K_depth(0,2)) * d / K_depth(0,0);
             float Y = (y - K_depth(1,2)) * d / K_depth(1,1);
             float Z = d;
 
-            Vector4f camPoint(X, Y, Z, 1.0f);
-            Vector4f worldPoint = E * camPoint;
+            Vector4f P_depth(X, Y, Z, 1.0f);
 
-            vertices[idx].position = worldPoint;
+            Vector4f P_world = E_depth_4x4.inverse() * P_depth; 
 
-            Vec3b rgb = color.at<Vec3b>(y, x);  // assumes 3-channel RGB
+            Vector4f P_color = E_color_4x4.inverse() * P_world;
+
+            vertices[idx].position = P_color;
+            
+            Vec3b rgb = color.at<Vec3b>(y, x);
             vertices[idx].color = Vector4uc(rgb[2], rgb[1], rgb[0], 255);
         }
     }
