@@ -231,5 +231,6 @@ int main() {
     }
 
     WriteMesh(vertices, width, height, "../out/output.off");
+    std::cout << "Mesh written to output.off" << std::endl;
     return 0;
 }

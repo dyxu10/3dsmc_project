@@ -5,6 +5,6 @@ output/
 Project/build
 Project/data
 Project/model
-Project/out
+Project/out/
 *.off
 *.obj
