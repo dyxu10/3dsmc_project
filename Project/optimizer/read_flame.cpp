@@ -158,6 +158,8 @@ int main() {
         face_points(2, v) = static_cast<double>(vertices[v].z());
     }
 
+    std::cout << "The dimension of face_points is: " << face_points.rows() << "x" << face_points.cols() << std::endl;
+
     // Print first 3 points as sanity check
     std::cout << "First 3 points in 3xN matrix (columns 0,1,2):\n";
     std::cout << face_points.block(0, 0, 3, 3) << std::endl;

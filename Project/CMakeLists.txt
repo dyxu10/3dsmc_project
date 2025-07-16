@@ -15,7 +15,11 @@ find_package(ZLIB REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # CNPY sources (optional, comment out if unused)
-# file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
+file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
+
+add_library(cnpy STATIC ${CNPY_SOURCES})
+target_include_directories(cnpy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
+target_link_libraries(cnpy PUBLIC ZLIB::ZLIB)
 
 # RT executables
 # add_executable(main RT/main.cpp)
@@ -51,9 +55,6 @@ target_link_libraries(pixel_match PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
 # KNN executable
 add_executable(knn knn/knn.cpp)
-target_include_directories(knn PRIVATE ${EIGEN3_INCLUDE_DIRS})
-target_link_libraries(knn PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX)
+target_include_directories(knn PRIVATE ${EIGEN3_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
+target_link_libraries(knn PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLIB::ZLIB)
 
-add_executable(knn_nanoflann knn/knn_nanoflann.cpp)
-target_include_directories(knn_nanoflann PRIVATE ${EIGEN3_INCLUDE_DIRS})
-target_link_libraries(knn_nanoflann PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX)

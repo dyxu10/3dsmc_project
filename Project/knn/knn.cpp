@@ -4,6 +4,9 @@
 #include <Eigen/Dense>
 #include <limits>
 #include <omp.h>
+#include <fstream>
+#include "cnpy.h"
+#include <random>
 
 using namespace std;
 using namespace Eigen;
@@ -95,16 +98,83 @@ std::vector<int> knn_search(const MatrixXf& source, const MatrixXf& target) {
     return nn_indices;
 }
 
+MatrixXf read_npz_to_matrix(const std::string& npz_path) {
+    bool GENERATE_RANDOM_FACE = false;
+
+    
+
+    // Load v_template
+    cnpy::NpyArray v_template_arr = cnpy::npz_load(npz_path, "v_template");
+ 
+
+    size_t num_vertices = v_template_arr.shape[0];
+    const double* v_data = v_template_arr.data<double>();
+
+    // Load faces
+    cnpy::NpyArray faces_arr = cnpy::npz_load(npz_path, "faces");
+
+    size_t num_faces = faces_arr.shape[0];
+    const uint32_t* f_data = faces_arr.data<uint32_t>();
+
+    // Load shapedirs
+    cnpy::NpyArray shapedirs_arr = cnpy::npz_load(npz_path, "shapedirs");
+
+    size_t num_betas = shapedirs_arr.shape[2];  // should be 400
+    std::cout << "Num of num_betas is " << num_betas << std::endl;
+    const double* s_data = shapedirs_arr.data<double>();
+
+
+    //Prepare faces
+    std::vector<Eigen::Vector3i> faces(num_faces);
+    for (size_t i = 0; i < num_faces; ++i) {
+        faces[i] = Eigen::Vector3i(static_cast<int>(f_data[i * 3 + 0]),
+                                   static_cast<int>(f_data[i * 3 + 1]),
+                                   static_cast<int>(f_data[i * 3 + 2]));
+    }
+
+    // Generate random betas
+    // Create a normal distribution with mean=0, stddev=1 (same as np.random.randn / chumpy)
+    std::default_random_engine rng(std::random_device{}());
+    std::normal_distribution<double> normal_dist(0.0, 1.0);
+    std::vector<Eigen::Vector3f> vertices(num_vertices);
+     
+    // If random face not enabled, use v_template directly
+    for (size_t v = 0; v < num_vertices; ++v) {
+        vertices[v] = Eigen::Vector3f(static_cast<float>(v_data[v * 3 + 0]),
+                                        static_cast<float>(v_data[v * 3 + 1]),
+                                        static_cast<float>(v_data[v * 3 + 2]));
+        }
+        std::cout << "Exporting neutral v_template mesh." << std::endl;
+    
+
+
+    // === Create 3xN matrix from vertices ===
+
+    // Create a 3 x num_vertices matrix (double precision)
+    Eigen::MatrixXd face_points(3, num_vertices);
+
+    for (size_t v = 0; v < num_vertices; ++v) {
+        face_points(0, v) = static_cast<double>(vertices[v].x());
+        face_points(1, v) = static_cast<double>(vertices[v].y());
+        face_points(2, v) = static_cast<double>(vertices[v].z());
+    }
+
+    return face_points.cast<float>();
+}
 
 int main() {
-    std::string input_off = "../data/face/00001_transform_onlyface.off";
+    std::string input_off = "../data/00001_transform_onlyface.off";
     // std::string output_txt = "../data/face/00001_pointcloud_matrix.txt";
     MatrixXf face = load_off_as_matrix(input_off);
     std::cout << "Loaded matrix of size: " << face.rows() << "x" << face.cols() << std::endl;
 
+    // std::string mm_head_path = "../model/mesh/flame2023_no_jaw.obj";
+    // MatrixXf mm_head = load_obj_as_matrix(mm_head_path);
+    // std::cout << "mm_head: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
+
     std::string mm_head_path = "../model/mesh/flame2023_no_jaw.obj";
-    MatrixXf mm_head = load_obj_as_matrix(mm_head_path);
-    std::cout << "mm_head: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
+    MatrixXf mm_head = read_npz_to_matrix(mm_head_path);
+    std::cout << "The dimension of mm_head is: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
 
     std::vector<int> nn_indices = knn_search(mm_head, face); // mm_head: 3xN1, face: 3xN2
 
