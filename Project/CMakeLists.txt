@@ -13,66 +13,42 @@ find_package(Eigen3 REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Source and header files
-set(SOURCES main.cpp)
+# CNPY sources (optional, comment out if unused)
+# file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
 
-# Optional: only list public headers if needed
-# If "Eigen.h" is your own file, include it. But not needed for Eigen itself.
-# Remove if you're mistakenly listing Eigen's internal headers.
-set(HEADERS )
+# RT executables
+# add_executable(main RT/main.cpp)
+# target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+# target_link_libraries(main PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
-# CNPY sources
-file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
+# add_executable(Rigid_alignment_RT RT/Rigid_alignment_RT.cpp)
+# target_include_directories(Rigid_alignment_RT PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+# target_link_libraries(Rigid_alignment_RT PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
-# Create executable
-add_executable(main ${SOURCES} ${HEADERS})
+# add_executable(scale RT/scale.cpp)
+# target_include_directories(scale PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+# target_link_libraries(scale PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
-# Include Eigen headers
-target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS})
+# add_executable(transform_off RT/transform_off.cpp)
+# target_link_libraries(transform_off PRIVATE Eigen3::Eigen)
 
-# Link Eigen (not strictly required for a header-only library, but fine)
-target_link_libraries(main PRIVATE Eigen3::Eigen)
+# add_executable(to_off RT/to_off.cpp)
+# target_include_directories(to_off PRIVATE ${EIGEN3_INCLUDE_DIRS})
+# target_link_libraries(to_off PRIVATE Eigen3::Eigen)
 
-target_include_directories(main PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(main PRIVATE ${OpenCV_LIBS})
+# add_executable(transform_pip_to_rgb RT/transform_pip_to_rgb.cpp)
+# target_link_libraries(transform_pip_to_rgb PRIVATE Eigen3::Eigen)
 
-# Add Rigid_alignment_RT executable
-add_executable(Rigid_alignment_RT Rigid_alignment_RT.cpp)
-target_include_directories(Rigid_alignment_RT PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+# Lift_depth executables
+add_executable(lift_depth Lift_depth/Lift_depth.cpp)
+target_include_directories(lift_depth PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(lift_depth PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
-add_executable(extract_vertices extract_vertices_under4.3.cpp)
-target_link_libraries(extract_vertices Eigen3::Eigen)
+add_executable(pixel_match Lift_depth/pixel_match.cpp)
+target_include_directories(pixel_match PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(pixel_match PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
-add_executable(transform_off transform_off.cpp)
-target_link_libraries(transform_off PRIVATE Eigen3::Eigen)
-
-add_executable(to_off to_off.cpp)
-target_include_directories(to_off PRIVATE ${EIGEN3_INCLUDE_DIRS})
-target_link_libraries(to_off PRIVATE Eigen3::Eigen)
-
-add_executable(transform_pip_to_rgb transform_pip_to_rgb.cpp)
-target_link_libraries(transform_pip_to_rgb PRIVATE Eigen3::Eigen)
-
-add_executable(scale scale.cpp)
-target_include_directories(scale PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(scale PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
-
-add_executable(lift_depth lift_depth.cpp)
-target_include_directories(lift_depth PRIVATE
-    ${EIGEN3_INCLUDE_DIRS}                 
-    ${OpenCV_INCLUDE_DIRS}
-)
-target_link_libraries(lift_depth PRIVATE
-    Eigen3::Eigen
-    ${OpenCV_LIBS}
-)
-
-add_executable(pixel_match pixel_match.cpp)
-target_include_directories(pixel_match PRIVATE
-    ${EIGEN3_INCLUDE_DIRS}                 
-    ${OpenCV_INCLUDE_DIRS}
-)
-target_link_libraries(pixel_match PRIVATE
-    Eigen3::Eigen
-    ${OpenCV_LIBS}
-)
+# KNN executable
+add_executable(knn knn/knn.cpp)
+target_include_directories(knn PRIVATE ${EIGEN3_INCLUDE_DIRS})
+target_link_libraries(knn PRIVATE Eigen3::Eigen)
