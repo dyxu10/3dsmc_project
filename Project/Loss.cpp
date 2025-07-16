@@ -17,6 +17,8 @@ static std::vector<Eigen::Vector3i> faces;
 static int numVertices        = 0;
 static int numShapeParameters = 0;
 static int numFaces           = 0;
+static std::vector<int> indexList;
+static const int NUM_MACTHED_POINTS = 3248;
 
 // 读取 numVertices × 3 的目标点 (x y z 每行)，转换成3 × numVertices的矩阵
 static Eigen::MatrixXd loadTargetPoints(const std::string &filePath) {
@@ -133,9 +135,30 @@ void calculateNormals(const T* shapeParams,
     }
 }
 
+//用来读取index然后存为indexList的
+std::vector<int> loadIndexList(const std::string& filePath) {
+    std::ifstream file(filePath);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open index file: " + filePath);
+    }
+
+    int idx;
+    while (file >> idx) {
+        indexList.push_back(idx);
+    }
+
+    file.close();
+    return indexList;
+}
+
+
 int main() {
-    const std::string targetsFile = "../Data/3d/.txt";
+    const std::string targetsFile = "../Data/3d/matched.txt";
     const std::string flameModel  = "../model/FLAME2023/flame2023_no_jaw.npz";
+    //读取用到的flame点的index并存在indexList里
+    std::string indexFile = "../Data/3d/index_list.txt";
+    indexList = loadIndexList(indexFile);
 
     // 1. 加载 FLAME 模型
     auto vTpl   = cnpy::npz_load(flameModel, "v_template");
@@ -148,19 +171,28 @@ int main() {
 
     // 模板顶点（double）
     templateVertices.resize(numVertices, 3);
-    std::memcpy(
-        templateVertices.data(),
-        vTpl.data<double>(),
-        sizeof(double) * numVertices * 3
-    );
+    const double* vtpl_data = vTpl.data<double>();
+
+    for (int i = 0; i < numVertices; ++i) {
+        templateVertices(i, 0) = vtpl_data[i * 3 + 0];  // x
+        templateVertices(i, 1) = vtpl_data[i * 3 + 1];  // y
+        templateVertices(i, 2) = vtpl_data[i * 3 + 2];  // z
+    }
 
     // 形变方向
     shapeDirections.resize(numVertices * 3 * numShapeParameters);
-    std::memcpy(
-        shapeDirections.data(),
-        sDirs.data<double>(),
-        sizeof(double) * shapeDirections.size()
-    );
+    const double* sdir_data = sDirs.data<double>();
+    for (int v = 0; v < numVertices; ++v) {
+        for (int c = 0; c < 3; ++c) {  // 0: x, 1: y, 2: z
+            for (int b = 0; b < numShapeParameters; ++b) {
+                // 3D 到扁平化索引：FLAME 风格展开成 V*3 行 × B 列
+                int flatIndex = (v * 3 + c) * numShapeParameters + b;
+                int npyIndex = v * 3 * numShapeParameters + c * numShapeParameters + b;
+
+                shapeDirections[flatIndex] = sdir_data[npyIndex];
+            }
+        }
+    }
 
     // faces
     int* f_data = fArr.data<int>();  // npz 中 f 应当是 int32
@@ -190,17 +222,22 @@ int main() {
     problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
 
     // 初始化（后脑勺部分）
-    std::int count = -1;
-    std::int indexIdx = 0;
-    std::vector<int> indexList; //TODO
+    int indexIdx = 0; // 用来检索indexList和matched target matrix的idx
+    std::ofstream matchedFlameFile("../Data/3d/matchedFlame.txt");
 
+    //numVertices = 5023, indexList.size() = 3248;
     for (int vi = 0; vi < numVertices; ++vi) {
-        count++; //用count来计算当前遍历的flame点的index
-        if(indexList[indexIdx] != count) continue; //如果没有在indexList里找到对应index的话，跳过当前循环
-        indexIdx++;
-        if (indexIdx >= indexList.size()) break; //如果indexList里的所有点都已经计算loss了，跳出for循环
 
-        // P2P
+        //如果indexList里的所有点都已经计算loss了，跳出for循环
+        if (indexIdx >= indexList.size()) break;
+
+        // 如果当前点不是 indexList 中的目标点，跳过
+        if(indexList[indexIdx] != vi) continue;        
+
+        //记录一下所有没有被跳过的点，看是否跟flame.txt里匹配
+        matchedFlameFile << templateVertices(vi, 0) << " " << templateVertices(vi, 1) << " " << templateVertices(vi, 2)<< "\n";
+
+        // P2P loss
         auto* cost_p2p = new ceres::DynamicAutoDiffCostFunction<P2PointResidual>(
             new P2PointResidual(vi, targets.col(vi).eval())
         );
@@ -217,6 +254,8 @@ int main() {
         cost_p2pl->AddParameterBlock(numShapeParameters);
         cost_p2pl->SetNumResiduals(1);
         problem.AddResidualBlock(cost_p2pl, nullptr, shapeParameters.data());
+
+        indexIdx++; //一共3248个匹配点，所以indexIdx最后应该等于3248（从0开始）
 
     }
 
