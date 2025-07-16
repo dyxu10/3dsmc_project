@@ -91,7 +91,7 @@ MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
 int main() {
     std::string input_off = "../data/00001_transform_onlyface.off";
     std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
-    std::string beta_path = "../optimizer/betas.txt";
+    std::string beta_path = "../optimizer/test_betas_1.txt";
 
     // Load target point cloud (transformed points)
     MatrixXf target = load_off_as_matrix(input_off);
@@ -123,19 +123,33 @@ int main() {
     // Configurable distance threshold
     float max_distance = 0.02f;
     int valid_count = 0;
+    float total_distance = 0.0f;
+    float max_dist_observed = 0.0f;
 
-    // Write filtered matched points
+    // Write filtered matched points and compute distance statistics
     for (int i = 0; i < source.cols(); ++i) {
         float dist = (source.col(i) - nn_points.col(i)).norm();
         if (dist > max_distance) continue;
 
         flame_out << source(0, i) << " " << source(1, i) << " " << source(2, i) << "\n";
         match_out << nn_points(0, i) << " " << nn_points(1, i) << " " << nn_points(2, i) << "\n";
-        index_out << i << " " << nn_indices[i] << "\n";  // Output source and target indices
+        index_out << i << "\n";  // Only output FLAME vertex index
+
+        total_distance += dist;
+        if (dist > max_dist_observed) max_dist_observed = dist;
+
         ++valid_count;
     }
 
-    std::cout << "KNN with betas completed. " << valid_count << " valid matches." << std::endl;
+    // Print summary
+    if (valid_count > 0) {
+        float mean_distance = total_distance / valid_count;
+        std::cout << "KNN with betas completed. " << valid_count << " valid matches." << std::endl;
+        std::cout << "Mean distance: " << mean_distance << std::endl;
+        std::cout << "Max distance: " << max_dist_observed << std::endl;
+    } else {
+        std::cout << "No valid matches found (all distances exceed threshold)." << std::endl;
+    }
+
     return 0;
 }
-
