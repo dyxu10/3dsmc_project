@@ -4,6 +4,7 @@ output/
 
 Project/build
 Project/data
-Project/cnpy
-
-flame39-env/
+Project/model
+Project/out/
+*.off
+*.obj
