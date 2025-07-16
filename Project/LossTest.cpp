@@ -1,4 +1,7 @@
-// loss.cpp
+// LossTest.cpp
+// 用mean的flame脸提取出来的所有点flame2023_mean.txt当作目标点，
+// 直接从flame模型里检索出来的点当作sourcePoints，flame模型的betas当作优化目标。
+// 如果lossfuncton没有问题的话那我的betas优化结果应该全部是0。
 
 #include <iostream>
 #include <fstream>
@@ -68,74 +71,26 @@ struct P2PointResidual {
     Eigen::Vector3d targetPoint_;
 };
 
-// 点到面残差
-struct P2PlaneResidual {
-    P2PlaneResidual(int vertexIndex,
-                    const Eigen::Vector3d &targetPoint,
-                    const Eigen::Vector3d &normal)
-      : vertexIndex_(vertexIndex)
-      , targetPoint_(targetPoint)
-      , normal_(normal) {}
-
-    template <typename T>
-    bool operator()(T const* const* parameters, T* residuals) const {
-        // 先复用点到点计算
-        P2PointResidual p2p(vertexIndex_, targetPoint_);
-        T p2pt[3];
-        p2p(parameters, p2pt);
-
-        // 点到面残差 = (p - q)·n
-        residuals[0] =
-            T(normal_.x())*p2pt[0] +
-            T(normal_.y())*p2pt[1] +
-            T(normal_.z())*p2pt[2];
-        return true;
+void saveVerticesAsTxt(const Eigen::MatrixXd& vertices, const std::string& path) {
+    std::ofstream out(path);
+    if (!out.is_open()) {
+        std::cerr << "Could not open file to write vertices: " << path << std::endl;
+        return;
     }
 
-    int vertexIndex_;
-    Eigen::Vector3d targetPoint_;
-    Eigen::Vector3d normal_;
-};
-
-// 计算顶点法线（模板化：T=double 或 Jet）
-template <typename T>
-void calculateNormals(const T* shapeParams,
-                      std::vector<Eigen::Matrix<T,3,1>>& normals) {
-    // 清零
-    for (auto& n : normals) n.setZero();
-
-    // 对每个三角面
-    for (const auto& f : faces) {
-        Eigen::Matrix<T,3,3> pts;
-        for (int i = 0; i < 3; ++i) {
-            int vi = f[i];
-            // 顶点坐标 + 形变
-            T x = T(templateVertices(vi,0)),
-              y = T(templateVertices(vi,1)),
-              z = T(templateVertices(vi,2));
-            for (int k = 0; k < numShapeParameters; ++k) {
-                T w = shapeParams[k];
-                x += T(shapeDirections[(vi*3+0)*numShapeParameters + k]) * w;
-                y += T(shapeDirections[(vi*3+1)*numShapeParameters + k]) * w;
-                z += T(shapeDirections[(vi*3+2)*numShapeParameters + k]) * w;
-            }
-            pts.col(i) = Eigen::Matrix<T,3,1>(x,y,z);
-        }
-        // 面法线
-        Eigen::Matrix<T,3,1> fn = (pts.col(1)-pts.col(0)).cross(pts.col(2)-pts.col(0));
-        // 累加到对应顶点
-        for (int i = 0; i < 3; ++i) normals[f[i]] += fn;
+    for (int i = 0; i < vertices.rows(); ++i) {
+        out << vertices(i, 0) << " "
+            << vertices(i, 1) << " "
+            << vertices(i, 2) << "\n";
     }
-    // 归一化
-    for (auto& n : normals) {
-        T norm = n.norm();
-        if (norm > T(1e-8)) n /= norm;
-    }
+    out.close();
+    std::cout << "Saved mean FLAME face to " << path << std::endl;
 }
 
 int main() {
-    const std::string targetsFile = "../Data/3d/flame2023_mean.txt";
     const std::string flameModel  = "../model/FLAME2023/flame2023_no_jaw.npz";
+    const std::string targetsFile = "../Data/3d/flame2023_mean_test.txt";
+
 
     // 1. 加载 FLAME 模型
     auto vTpl   = cnpy::npz_load(flameModel, "v_template");
@@ -144,7 +99,7 @@ int main() {
 
     numVertices        = int(vTpl.shape[0]);
     numShapeParameters = int(sDirs.shape[2]);
-    numFaces           = int(fArr.shape[0]);
+    // numFaces           = int(fArr.shape[0]);
 
     // 模板顶点（double）
     templateVertices.resize(numVertices, 3);
@@ -163,27 +118,25 @@ int main() {
     );
 
     // faces
-    int* f_data = fArr.data<int>();  // npz 中 f 应当是 int32
-    faces.resize(numFaces);
-    for (int i = 0; i < numFaces; ++i) {
-        faces[i] = Eigen::Vector3i(
-            f_data[3*i+0],
-            f_data[3*i+1],
-            f_data[3*i+2]
-        );
-    }
+    // int* f_data = fArr.data<int>(); 
+    // faces.resize(numFaces);
+    // for (int i = 0; i < numFaces; ++i) {
+    //     faces[i] = Eigen::Vector3i(
+    //         f_data[3*i+0],
+    //         f_data[3*i+1],
+    //         f_data[3*i+2]
+    //     );
+    // }
+
+    // saveVerticesAsTxt(templateVertices, "../Data/3d/flame2023_mean_test.txt");
+    // const std::string targetsFile = "../Data/3d/flame2023_mean_test.txt";
+
 
     // 2. 加载目标点 (3 × numVertices)
     Eigen::MatrixXd targets = loadTargetPoints(targetsFile);
 
-    // 3. 初始化参数 & 法线容器
+    // 3. 初始化参数
     std::vector<double> shapeParameters(numShapeParameters, 0.0);
-    std::vector<Eigen::Vector3d> vertex_normals(
-        numVertices, Eigen::Vector3d::Zero()
-    );
-
-    // 4. 计算法线
-    calculateNormals<double>(shapeParameters.data(), vertex_normals);
 
     // 5. 构造 Ceres 问题
     ceres::Problem problem;
@@ -197,16 +150,6 @@ int main() {
         cost_p2p->AddParameterBlock(numShapeParameters);
         cost_p2p->SetNumResiduals(3);
         problem.AddResidualBlock(cost_p2p, nullptr, shapeParameters.data());
-
-        // P2Plane
-        auto* cost_p2pl = new ceres::DynamicAutoDiffCostFunction<P2PlaneResidual>(
-            new P2PlaneResidual(vi,
-                                targets.col(vi).eval(),
-                                vertex_normals[vi])
-        );
-        cost_p2pl->AddParameterBlock(numShapeParameters);
-        cost_p2pl->SetNumResiduals(1);
-        problem.AddResidualBlock(cost_p2pl, nullptr, shapeParameters.data());
     }
 
     // 6. 求解
@@ -226,9 +169,9 @@ int main() {
     for (int i = 0; i < numVertices; ++i) {
         Eigen::Vector3d v = templateVertices.row(i).transpose();
         for (int k = 0; k < numShapeParameters; ++k) {
-            v[0] += shapeDirections[(i * 3 + 0) * numShapeParameters + k] * shapeParameters[k];
-            v[1] += shapeDirections[(i * 3 + 1) * numShapeParameters + k] * shapeParameters[k];
-            v[2] += shapeDirections[(i * 3 + 2) * numShapeParameters + k] * shapeParameters[k];
+            v[0] += shapeDirections[(i * 3 + 0)*numShapeParameters + k] * shapeParameters[k];
+            v[1] += shapeDirections[(i * 3 + 1)*numShapeParameters + k] * shapeParameters[k];
+            v[2] += shapeDirections[(i * 3 + 2)*numShapeParameters + k] * shapeParameters[k];
         }
         Eigen::Vector3d diff = v - targets.col(i).eval();
         totalLoss += diff.squaredNorm();
@@ -236,10 +179,10 @@ int main() {
     std::cout << "Final loss (Ceres style, cost): " << totalLoss / 2.0 << std::endl;
 
     // 8. 保存 betas
-    std::ofstream betaFile("../Data/3d/optimized_betas.txt");
+    std::ofstream betaFile("../Data/3d/test_betas_3.txt");
     for (double b : shapeParameters) betaFile << b << "\n";
     betaFile.close();
-    std::cout << "Saved shape parameters to optimized_betas.txt\n";
+    std::cout << "Saved shape parameters to test_betas_3.txt\n";
 
     return 0;
 }

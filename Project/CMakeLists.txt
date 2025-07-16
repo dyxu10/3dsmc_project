@@ -30,7 +30,8 @@ add_subdirectory(${CNPY_DIR} cnpy_build)
 # ========================
 # 注释掉旧的运行文件
 # set(LOSS_SOURCES   Loss.cpp)
-set(READ_FLAME_SOURCES read_flame.cpp)
+# set(READ_FLAME_SOURCES read_flame.cpp)
+set(LOSSTEST_SOURCES   lossTest.cpp)
 
 # ========================
 # Targets
@@ -39,18 +40,20 @@ set(READ_FLAME_SOURCES read_flame.cpp)
 # add_executable(main            main.cpp)
 # add_executable(main_landmarks  main_landmarks.cpp main.cpp)
 # add_executable(loss ${LOSS_SOURCES})
-
-add_executable(read_flame ${READ_FLAME_SOURCES})
+# add_executable(read_flame ${READ_FLAME_SOURCES})
+add_executable(lossTest ${LOSSTEST_SOURCES})
 
 # ========== Include 路径 ==========
 # target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 # target_include_directories(main_landmarks PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 # target_include_directories(loss PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
-target_include_directories(read_flame PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
+# target_include_directories(read_flame PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
+target_include_directories(lossTest PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
 
 
 # ========== 链接库 ==========
 # target_link_libraries(main PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES})
 # target_link_libraries(main_landmarks PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES})
 # target_link_libraries(loss PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
-target_link_libraries(read_flame PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
+# target_link_libraries(read_flame PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
+target_link_libraries(lossTest PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)

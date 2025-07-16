@@ -7,6 +7,7 @@
 #include <random>
 
 // Read flame from npz file and exports to obj file. Generates random face if GENERATE_RANDOM_FACE set to true, generic face otherwise.
+// Generate optimized flame moodel if GENERATE_SPECIFIC_FACE set to true(it will read the optimized betas.txt).
 
 
 // Save vertices & faces to OBJ
@@ -82,7 +83,7 @@ int main() {
 
     std::vector<double> betas;
     if (GENERATE_SPECIFIC_FACE) {
-        std::ifstream betaFile("../Data/3d/optimized_betas_2.txt");
+        std::ifstream betaFile("../Data/3d/test_betas_3.txt");
         double val;
         while (betaFile >> val) {
             betas.push_back(val);
@@ -162,7 +163,7 @@ int main() {
     std::cout << "First 3 points in 3xN matrix (columns 0,1,2):\n";
     std::cout << face_points.block(0, 0, 3, 3) << std::endl;
 
-    save_obj("../model/mesh/flame2023_optimized_2.obj", vertices, faces);
+    save_obj("../model/mesh/flame2023_test_2.obj", vertices, faces);
 
     return 0;
 }
