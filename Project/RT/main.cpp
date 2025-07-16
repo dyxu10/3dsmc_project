@@ -191,8 +191,8 @@ std::vector<Eigen::Vector3f> Extract3DLandmarksFromDepth(
 }
 
 int main() {
-    std::string colorPath = "../data/color/00002.png";
-    std::string depthPath = "../data/depth/00002.png";
+    std::string colorPath = "../data/color/00001.png";
+    std::string depthPath = "../data/depth/00001.png";
 
     std::string depthIntrPath = "../data/camera/c00_color_intrinsic.txt";
     std::string colorIntrPath = "../data/camera/c00_color_intrinsic.txt";

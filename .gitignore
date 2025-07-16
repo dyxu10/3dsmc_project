@@ -4,7 +4,5 @@ output/
 
 Project/build
 Project/data
-Project/model
-Project/out/
 *.off
 *.obj
