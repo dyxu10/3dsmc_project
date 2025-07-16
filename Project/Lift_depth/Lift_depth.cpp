@@ -204,7 +204,7 @@ int main() {
     int height = depth.rows;
     std::vector<Vertex> vertices(width * height);
 
-    // DPHM-style approach: work directly in depth camera coordinates
+
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int idx = y * width + x;
@@ -231,9 +231,7 @@ int main() {
             // Vector4f P_color = E_color_4x4 * P_world;
 
             Vector4f P_color(X, Y, Z, 1.0f);
-
             vertices[idx].position = P_color;
-            
             Vec3b rgb = color.at<Vec3b>(y, x);
             vertices[idx].color = Vector4uc(rgb[2], rgb[1], rgb[0], 255);
         }
