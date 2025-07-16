@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # Set the project name
 project(Project_3DSMC)
 
+find_package(OpenMP REQUIRED)
 
 # Set C++ flags
 set(CMAKE_CXX_STANDARD 14)
@@ -51,4 +52,8 @@ target_link_libraries(pixel_match PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 # KNN executable
 add_executable(knn knn/knn.cpp)
 target_include_directories(knn PRIVATE ${EIGEN3_INCLUDE_DIRS})
-target_link_libraries(knn PRIVATE Eigen3::Eigen)
+target_link_libraries(knn PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX)
+
+add_executable(knn_nanoflann knn/knn_nanoflann.cpp)
+target_include_directories(knn_nanoflann PRIVATE ${EIGEN3_INCLUDE_DIRS})
+target_link_libraries(knn_nanoflann PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX)

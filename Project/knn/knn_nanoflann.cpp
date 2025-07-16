@@ -3,7 +3,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include <limits>
-#include <omp.h>
+#include "nanoflann.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -64,33 +64,49 @@ void save_matrix(const MatrixXf& mat, const std::string& filename) {
     out << mat << "\n";
 }
 
-void save_matrix_as_off(const MatrixXf& mat, const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out.is_open()) throw std::runtime_error("Cannot open output file");
+struct PointCloudAdaptor {
+    const Eigen::MatrixXf& mat; // 3 x N
 
-    int numVertices = mat.cols();
-    out << "OFF\n";
-    out << numVertices << " 0 0\n";
-    for (int i = 0; i < numVertices; ++i) {
-        out << mat(0, i) << " " << mat(1, i) << " " << mat(2, i) << "\n";
+    PointCloudAdaptor(const Eigen::MatrixXf& mat_) : mat(mat_) {}
+
+    // Must return the number of data points
+    inline size_t kdtree_get_point_count() const { return mat.cols(); }
+
+    // Returns the dim'th component of the idx'th point
+    inline float kdtree_get_pt(const size_t idx, const size_t dim) const {
+        return mat(dim, idx);
     }
-}
+
+    // Optional bounding-box computation: return false to default
+    template <class BBOX>
+    bool kdtree_get_bbox(BBOX&) const { return false; }
+};
+
+using namespace nanoflann;
+typedef KDTreeSingleIndexAdaptor<
+    L2_Simple_Adaptor<float, PointCloudAdaptor>,
+    PointCloudAdaptor,
+    3 // dimension
+> KDTree;
 
 // Returns a vector of indices: for each source point, the index of its nearest neighbor in target
-std::vector<int> knn_search(const MatrixXf& source, const MatrixXf& target) {
+std::vector<int> knn_search_nanoflann(const Eigen::MatrixXf& source, const Eigen::MatrixXf& target) {
+    PointCloudAdaptor target_pc(target);
+    KDTree index(3, target_pc, KDTreeSingleIndexAdaptorParams(10 /* max leaf */));
+    index.buildIndex();
+
     std::vector<int> nn_indices(source.cols(), -1);
 
+    nanoflann::KNNResultSet<float> resultSet(1); //look for 1 nearest neighbor
+
+    #pragma omp parallel for
     for (int i = 0; i < source.cols(); ++i) {
-        float min_dist = std::numeric_limits<float>::max();
-        int min_j = -1;
-        for (int j = 0; j < target.cols(); ++j) {
-            float dist = (source.col(i) - target.col(j)).squaredNorm();
-            if (dist < min_dist) {
-                min_dist = dist;
-                min_j = j;
-            }
-        }
-        nn_indices[i] = min_j; // index of closest point in target for source.col(i)
+        size_t ret_index;
+        float out_dist_sqr;
+        float query_pt[3] = { source(0, i), source(1, i), source(2, i) };
+        resultSet.init(&ret_index, &out_dist_sqr);
+        index.findNeighbors(resultSet, query_pt, nanoflann::SearchParameters(10));
+        nn_indices[i] = static_cast<int>(ret_index);
     }
     return nn_indices;
 }
@@ -106,7 +122,7 @@ int main() {
     MatrixXf mm_head = load_obj_as_matrix(mm_head_path);
     std::cout << "mm_head: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
 
-    std::vector<int> nn_indices = knn_search(mm_head, face); // mm_head: 3xN1, face: 3xN2
+    std::vector<int> nn_indices = knn_search_nanoflann(mm_head, face); // mm_head: 3xN1, face: 3xN2
 
     for (int i = 0; i < mm_head.cols(); ++i) {
         int nn_idx = nn_indices[i]; // index in face
@@ -114,19 +130,6 @@ int main() {
         std::cout << "Nearest neighbor of point " << i << " in mm_head: " << nn_idx
                   << " distance: " << distance << std::endl;
     }
-
-    MatrixXf nn_points(3, mm_head.cols());
-    for (int i = 0; i < mm_head.cols(); ++i) {
-        int nn_idx = nn_indices[i];
-        nn_points.col(i) = face.col(nn_idx);
-    }
-
-    std::cout << "The dimension of nn_points is: " << nn_points.rows() << "x" << nn_points.cols() << std::endl;
-    std::cout << "The dimension of mm_head is: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
-
-    std::string output_off = "../optimizer/knn_searched.off";
-    save_matrix_as_off(nn_points, output_off);
-    std::cout << "Saved nearest neighbor points to " << output_off << std::endl;
 
     // save_matrix(mat, output_txt);
     // std::cout << "Saved matrix to " << output_txt << std::endl;
