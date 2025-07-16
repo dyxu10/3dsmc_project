@@ -13,30 +13,28 @@ find_package(Eigen3 REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Sources
-set(SOURCES
-    main.cpp
-    read_flame.cpp
-)
+
 
 file(GLOB CNPY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cnpy/*.cpp)
 
-# Create executable
-add_executable(main main.cpp ${CNPY_SOURCES})
 
-# Include directories
-target_include_directories(main PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/cnpy        # correct path to cnpy.h
-    ${CMAKE_CURRENT_SOURCE_DIR}             # for your own headers
-    ${EIGEN3_INCLUDE_DIRS}                  # Eigen3
+
+add_executable(lift_depth lift_depth.cpp)
+target_include_directories(lift_depth PRIVATE
+    ${EIGEN3_INCLUDE_DIRS}                 
     ${OpenCV_INCLUDE_DIRS}
 )
-
-
-# Link libraries
-target_link_libraries(main PRIVATE
-    ZLIB::ZLIB
+target_link_libraries(lift_depth PRIVATE
     Eigen3::Eigen
     ${OpenCV_LIBS}
 )
 
+add_executable(pixel_match pixel_match.cpp)
+target_include_directories(pixel_match PRIVATE
+    ${EIGEN3_INCLUDE_DIRS}                 
+    ${OpenCV_INCLUDE_DIRS}
+)
+target_link_libraries(pixel_match PRIVATE
+    Eigen3::Eigen
+    ${OpenCV_LIBS}
+)
