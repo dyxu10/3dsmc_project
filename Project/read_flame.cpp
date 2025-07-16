@@ -83,7 +83,7 @@ int main() {
 
     std::vector<double> betas;
     if (GENERATE_SPECIFIC_FACE) {
-        std::ifstream betaFile("../Data/3d/test_betas_3.txt");
+        std::ifstream betaFile("../Data/3d/test_betas_2.txt");
         double val;
         while (betaFile >> val) {
             betas.push_back(val);
@@ -163,7 +163,7 @@ int main() {
     std::cout << "First 3 points in 3xN matrix (columns 0,1,2):\n";
     std::cout << face_points.block(0, 0, 3, 3) << std::endl;
 
-    save_obj("../model/mesh/flame2023_test_2.obj", vertices, faces);
+    save_obj("../model/mesh/test_2.obj", vertices, faces);
 
     return 0;
 }

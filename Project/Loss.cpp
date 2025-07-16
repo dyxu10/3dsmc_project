@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
-#include <cstring>               // for std::memcpy
+#include <cstring>
 
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
@@ -134,7 +134,7 @@ void calculateNormals(const T* shapeParams,
 }
 
 int main() {
-    const std::string targetsFile = "../Data/3d/flame2023_mean.txt";
+    const std::string targetsFile = "../Data/3d/.txt";
     const std::string flameModel  = "../model/FLAME2023/flame2023_no_jaw.npz";
 
     // 1. 加载 FLAME 模型
@@ -189,7 +189,17 @@ int main() {
     ceres::Problem problem;
     problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
 
+    // 初始化（后脑勺部分）
+    std::int count = -1;
+    std::int indexIdx = 0;
+    std::vector<int> indexList; //TODO
+
     for (int vi = 0; vi < numVertices; ++vi) {
+        count++; //用count来计算当前遍历的flame点的index
+        if(indexList[indexIdx] != count) continue; //如果没有在indexList里找到对应index的话，跳过当前循环
+        indexIdx++;
+        if (indexIdx >= indexList.size()) break; //如果indexList里的所有点都已经计算loss了，跳出for循环
+
         // P2P
         auto* cost_p2p = new ceres::DynamicAutoDiffCostFunction<P2PointResidual>(
             new P2PointResidual(vi, targets.col(vi).eval())
@@ -207,6 +217,7 @@ int main() {
         cost_p2pl->AddParameterBlock(numShapeParameters);
         cost_p2pl->SetNumResiduals(1);
         problem.AddResidualBlock(cost_p2pl, nullptr, shapeParameters.data());
+
     }
 
     // 6. 求解
@@ -222,24 +233,24 @@ int main() {
     std::cout << summary.FullReport() << std::endl;
 
     // 7. 打印最终 loss
-    double totalLoss = 0.0;
-    for (int i = 0; i < numVertices; ++i) {
-        Eigen::Vector3d v = templateVertices.row(i).transpose();
-        for (int k = 0; k < numShapeParameters; ++k) {
-            v[0] += shapeDirections[(i * 3 + 0) * numShapeParameters + k] * shapeParameters[k];
-            v[1] += shapeDirections[(i * 3 + 1) * numShapeParameters + k] * shapeParameters[k];
-            v[2] += shapeDirections[(i * 3 + 2) * numShapeParameters + k] * shapeParameters[k];
-        }
-        Eigen::Vector3d diff = v - targets.col(i).eval();
-        totalLoss += diff.squaredNorm();
-    }
-    std::cout << "Final loss (Ceres style, cost): " << totalLoss / 2.0 << std::endl;
+    // double totalLoss = 0.0;
+    // for (int i = 0; i < numVertices; ++i) {
+    //     Eigen::Vector3d v = templateVertices.row(i).transpose();
+    //     for (int k = 0; k < numShapeParameters; ++k) {
+    //         v[0] += shapeDirections[(i * 3 + 0) * numShapeParameters + k] * shapeParameters[k];
+    //         v[1] += shapeDirections[(i * 3 + 1) * numShapeParameters + k] * shapeParameters[k];
+    //         v[2] += shapeDirections[(i * 3 + 2) * numShapeParameters + k] * shapeParameters[k];
+    //     }
+    //     Eigen::Vector3d diff = v - targets.col(i).eval();
+    //     totalLoss += diff.squaredNorm();
+    // }
+    // std::cout << "Final loss (Ceres style, cost): " << totalLoss / 2.0 << std::endl;
 
     // 8. 保存 betas
-    std::ofstream betaFile("../Data/3d/optimized_betas.txt");
+    std::ofstream betaFile("../Data/3d/optimized_betas_.txt");
     for (double b : shapeParameters) betaFile << b << "\n";
     betaFile.close();
-    std::cout << "Saved shape parameters to optimized_betas.txt\n";
+    std::cout << "Saved shape parameters to optimized_betas_.txt\n";
 
     return 0;
 }

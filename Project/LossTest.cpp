@@ -7,15 +7,14 @@
 #include <fstream>
 #include <vector>
 #include <string>
-#include <cstring>               // for std::memcpy
-
+#include <cstring>
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
 #include "cnpy.h"
 
 // —— 全局变量 ——
-static Eigen::MatrixXd templateVertices;                // double precision
-static std::vector<double>    shapeDirections;          // double precision
+static Eigen::MatrixXd templateVertices;           
+static std::vector<double>    shapeDirections;          
 static std::vector<Eigen::Vector3i> faces;
 static int numVertices        = 0;
 static int numShapeParameters = 0;
@@ -89,7 +88,7 @@ void saveVerticesAsTxt(const Eigen::MatrixXd& vertices, const std::string& path)
 
 int main() {
     const std::string flameModel  = "../model/FLAME2023/flame2023_no_jaw.npz";
-    const std::string targetsFile = "../Data/3d/flame2023_mean_test.txt";
+    const std::string targetsFile = "../Data/3d/test_flame2023_mean_2.txt";
 
 
     // 1. 加载 FLAME 模型
@@ -117,19 +116,9 @@ int main() {
         sizeof(double) * shapeDirections.size()
     );
 
-    // faces
-    // int* f_data = fArr.data<int>(); 
-    // faces.resize(numFaces);
-    // for (int i = 0; i < numFaces; ++i) {
-    //     faces[i] = Eigen::Vector3i(
-    //         f_data[3*i+0],
-    //         f_data[3*i+1],
-    //         f_data[3*i+2]
-    //     );
-    // }
-
-    // saveVerticesAsTxt(templateVertices, "../Data/3d/flame2023_mean_test.txt");
-    // const std::string targetsFile = "../Data/3d/flame2023_mean_test.txt";
+    //这是用来根据flame模型（.npz）的顺序生成mean点的，用于测试loss
+    // saveVerticesAsTxt(templateVertices, "../Data/3d/test_flame2023_mean.txt");
+    // const std::string targetsFile = "../Data/3d/test_flame2023_mean.txt";
 
 
     // 2. 加载目标点 (3 × numVertices)
@@ -143,7 +132,7 @@ int main() {
     problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
 
     for (int vi = 0; vi < numVertices; ++vi) {
-        // P2P
+        // P2P loss
         auto* cost_p2p = new ceres::DynamicAutoDiffCostFunction<P2PointResidual>(
             new P2PointResidual(vi, targets.col(vi).eval())
         );
@@ -153,6 +142,7 @@ int main() {
     }
 
     // 6. 求解
+    // 优化器设置是直接照抄exercise5里的设置
     ceres::Solver::Options opts;
     opts.trust_region_strategy_type  = ceres::LEVENBERG_MARQUARDT;
     opts.use_nonmonotonic_steps       = false;
@@ -165,24 +155,25 @@ int main() {
     std::cout << summary.FullReport() << std::endl;
 
     // 7. 打印最终 loss
-    double totalLoss = 0.0;
-    for (int i = 0; i < numVertices; ++i) {
-        Eigen::Vector3d v = templateVertices.row(i).transpose();
-        for (int k = 0; k < numShapeParameters; ++k) {
-            v[0] += shapeDirections[(i * 3 + 0)*numShapeParameters + k] * shapeParameters[k];
-            v[1] += shapeDirections[(i * 3 + 1)*numShapeParameters + k] * shapeParameters[k];
-            v[2] += shapeDirections[(i * 3 + 2)*numShapeParameters + k] * shapeParameters[k];
-        }
-        Eigen::Vector3d diff = v - targets.col(i).eval();
-        totalLoss += diff.squaredNorm();
-    }
-    std::cout << "Final loss (Ceres style, cost): " << totalLoss / 2.0 << std::endl;
+    // 可以不用，summary.FullReport()里有
+    // double totalLoss = 0.0;
+    // for (int i = 0; i < numVertices; ++i) {
+    //     Eigen::Vector3d v = templateVertices.row(i).transpose();
+    //     for (int k = 0; k < numShapeParameters; ++k) {
+    //         v[0] += shapeDirections[(i * 3 + 0)*numShapeParameters + k] * shapeParameters[k];
+    //         v[1] += shapeDirections[(i * 3 + 1)*numShapeParameters + k] * shapeParameters[k];
+    //         v[2] += shapeDirections[(i * 3 + 2)*numShapeParameters + k] * shapeParameters[k];
+    //     }
+    //     Eigen::Vector3d diff = v - targets.col(i).eval();
+    //     totalLoss += diff.squaredNorm();
+    // }
+    // std::cout << "Final loss (Ceres style, cost): " << totalLoss / 2.0 << std::endl;
 
     // 8. 保存 betas
-    std::ofstream betaFile("../Data/3d/test_betas_3.txt");
+    std::ofstream betaFile("../Data/3d/test_betas_2.txt");
     for (double b : shapeParameters) betaFile << b << "\n";
     betaFile.close();
-    std::cout << "Saved shape parameters to test_betas_3.txt\n";
+    std::cout << "Saved shape parameters to test_betas_2.txt\n";
 
     return 0;
 }

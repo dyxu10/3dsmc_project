@@ -22,38 +22,52 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Ceres   REQUIRED)
 
-# 添加 cnpy 库（必须告诉 CMake 编译它）
+# 添加 cnpy 库
 add_subdirectory(${CNPY_DIR} cnpy_build)
 
 # ========================
-# Sources
+# 设置想编译的目标名，只改这里就行
+# 可选值: main, main_landmarks, loss, read_flame, lossTest
+set(TARGET_NAME "read_flame")
 # ========================
-# 注释掉旧的运行文件
-# set(LOSS_SOURCES   Loss.cpp)
-# set(READ_FLAME_SOURCES read_flame.cpp)
-set(LOSSTEST_SOURCES   lossTest.cpp)
 
-# ========================
-# Targets
-# ========================
-# 注释掉旧的运行文件
-# add_executable(main            main.cpp)
-# add_executable(main_landmarks  main_landmarks.cpp main.cpp)
-# add_executable(loss ${LOSS_SOURCES})
-# add_executable(read_flame ${READ_FLAME_SOURCES})
-add_executable(lossTest ${LOSSTEST_SOURCES})
+# 源码路径定义
+set(SOURCE_main              main.cpp)
+set(SOURCE_main_landmarks    main_landmarks.cpp main.cpp)
+set(SOURCE_loss              Loss.cpp)
+set(SOURCE_read_flame        read_flame.cpp)
+set(SOURCE_lossTest          lossTest.cpp)
 
-# ========== Include 路径 ==========
-# target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
-# target_include_directories(main_landmarks PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
-# target_include_directories(loss PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
-# target_include_directories(read_flame PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
-target_include_directories(lossTest PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CNPY_DIR})
+# 自动选择对应源文件
+if(TARGET_NAME STREQUAL "main")
+    set(SRC ${SOURCE_main})
+elseif(TARGET_NAME STREQUAL "main_landmarks")
+    set(SRC ${SOURCE_main_landmarks})
+elseif(TARGET_NAME STREQUAL "loss")
+    set(SRC ${SOURCE_loss})
+elseif(TARGET_NAME STREQUAL "read_flame")
+    set(SRC ${SOURCE_read_flame})
+elseif(TARGET_NAME STREQUAL "lossTest")
+    set(SRC ${SOURCE_lossTest})
+else()
+    message(FATAL_ERROR "Unknown TARGET_NAME: ${TARGET_NAME}")
+endif()
 
+# 添加可执行文件
+add_executable(${TARGET_NAME} ${SRC})
 
-# ========== 链接库 ==========
-# target_link_libraries(main PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES})
-# target_link_libraries(main_landmarks PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES})
-# target_link_libraries(loss PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
-# target_link_libraries(read_flame PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
-target_link_libraries(lossTest PRIVATE Eigen3::Eigen ${OpenCV_LIBS} ${CERES_LIBRARIES} cnpy)
+# Include 路径
+target_include_directories(${TARGET_NAME} PRIVATE
+    ${EIGEN3_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${CNPY_DIR}
+)
+
+# 链接库
+target_link_libraries(${TARGET_NAME} PRIVATE
+    Eigen3::Eigen
+    ${OpenCV_LIBS}
+    ${CERES_LIBRARIES}
+    cnpy
+)
