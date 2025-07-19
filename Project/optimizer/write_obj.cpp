@@ -8,7 +8,7 @@
 
 // Read flame from npz file and exports to obj file. Generates random face if GENERATE_RANDOM_FACE set to true, generic face otherwise.
 // Generate optimized flame moodel if GENERATE_SPECIFIC_FACE set to true(it will read the optimized betas.txt).
-static const int ITERATION = 10; //用来记录这是第几轮优化（loss+knn算一轮）
+//用来记录这是第几轮优化（loss+knn算一轮）
 
 
 // Save vertices & faces to OBJ
@@ -33,7 +33,7 @@ void save_obj(const std::string& path,
     std::cout << "Exported mesh to " << path << std::endl;
 }
 
-int main() {
+void write_obj(int ITERATION) {
     bool GENERATE_RANDOM_FACE = false;
     bool GENERATE_SPECIFIC_FACE = true;
 
@@ -166,5 +166,4 @@ int main() {
 
     save_obj("../model/mesh/optimized_" + std::to_string(ITERATION) + ".obj", vertices, faces);
 
-    return 0;
 }

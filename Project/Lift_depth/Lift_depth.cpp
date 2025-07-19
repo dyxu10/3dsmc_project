@@ -158,12 +158,12 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
 
 int main() {
 
-    std::string frame = "00001";
-    std::string colorPath = "../data/color/" + frame + ".png";
-    std::string depthPath = "../data/depth/" + frame + ".png";
+    std::string frame = "00028";
+    std::string colorPath = "../dataset/color/" + frame + ".png";
+    std::string depthPath = "../dataset/depth/" + frame + ".png";
 
-    std::string depthIntrPath = "../data/camera/c00_depth_intrinsic.txt";
-    std::string colorIntrPath = "../data/camera/c00_color_intrinsic.txt";
+    std::string depthIntrPath = "../dataset/camera/c00_depth_intrinsic.txt";
+    std::string colorIntrPath = "../dataset/camera/c00_color_intrinsic.txt";
 
     Matrix3f K_depth = ReadIntrinsics(depthIntrPath);
     Matrix3f K_color = ReadIntrinsics(colorIntrPath);
@@ -171,8 +171,8 @@ int main() {
     std::cout << "K_color:\n" << K_color << std::endl;
     std::cout << "K_depth:\n" << K_depth << std::endl;
 
-    std::string depthExtrPath = "../data/camera/c00_depth_extrinsic.txt";
-    std::string colorExtrPath = "../data/camera/c00_color_extrinsic.txt";
+    std::string depthExtrPath = "../dataset/camera/c00_depth_extrinsic.txt";
+    std::string colorExtrPath = "../dataset/camera/c00_color_extrinsic.txt";
 
     auto E_depth = ReadExtrinsics(depthExtrPath);
     auto E_color = ReadExtrinsics(colorExtrPath);
@@ -237,7 +237,7 @@ int main() {
         }
     }
 
-    WriteMesh(vertices, width, height, "../out/output.off");
-    std::cout << "Mesh written to output.off" << std::endl;
+    WriteMesh(vertices, width, height, "../out/face_point_cloud.off");
+    std::cout << "Mesh written to face_point_cloud.off" << std::endl;
     return 0;
 }

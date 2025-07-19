@@ -3,7 +3,7 @@ output/
 .DS_Store
 
 Project/build
-Project/data
+Project/dataset
 Project/model
 Project/out/
 *.off
