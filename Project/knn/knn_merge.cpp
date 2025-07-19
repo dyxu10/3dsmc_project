@@ -23,10 +23,46 @@ struct Flame_Mesh{
     const std::vector<double>& betas;
 };
 
+// Load OFF file as 3xN matrix
+MatrixXf load_off_as_matrix(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in.is_open()) throw std::runtime_error("Cannot open file: " + filename);
+
+    std::string header;
+    in >> header;
+    if (header != "OFF" && header != "COFF") throw std::runtime_error("Not an OFF/COFF file");
+
+    int numVertices, numFaces, dummy;
+    in >> numVertices >> numFaces >> dummy;
+    MatrixXf mat(3, numVertices);
+    for (int i = 0; i < numVertices; ++i) {
+        float x, y, z;
+        in >> x >> y >> z;
+        mat(0, i) = x;
+        mat(1, i) = y;
+        mat(2, i) = z;
+        if (header == "COFF") { int r, g, b, a; in >> r >> g >> b >> a; }
+    }
+    return mat;
+}
+// Try load betas file (returns 300x1 vector or zeros if not found)
+VectorXd load_betas(const std::string& filepath, size_t num_betas) {
+    VectorXd betas = VectorXd::Zero(num_betas);
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cout << "Betas file not found, using zeros." << std::endl;
+        return betas;
+    }
+    for (size_t i = 0; i < num_betas && file >> betas(i); ++i);
+    return betas;
+}
+
+
 
 // Parallel KNN search
 std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& target) {
     std::vector<int> nn_indices(source.cols(), -1);
+    float distance_threshold = 0.02f;
     #pragma omp parallel for
     for (int i = 0; i < source.cols(); ++i) {
         float min_dist = std::numeric_limits<float>::max();
@@ -39,7 +75,13 @@ std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& tar
             }
         }
         nn_indices[i] = min_j;
+        // Compare the actual distance (sqrt of squared distance) with threshold
+        if (std::sqrt(min_dist) > distance_threshold) {
+            nn_indices[i] = 1234;
+        }
     }
+
+
     return nn_indices;
 }
 
@@ -67,6 +109,8 @@ MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
         }
         vertices.col(i) = v;
     }
+
+
     return vertices;
 }
 
@@ -142,40 +186,27 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // knn result : nearest point of source.col(i) in target = target.col(nn_indices[i])
     std::vector<int> nn_indices = knn_search_parallel(source, target);
 
-    // Build matched point set
-    // nearest point of source.col(i) in target = nn_points.col(i)
-    MatrixXf nn_points(3, source.cols());
-    for (int i = 0; i < source.cols(); ++i)
-        nn_points.col(i) = target.col(nn_indices[i]);
-
-
-    std::vector<int> flame_indices;
-    // Write filtered matched points and compute distance statistics
-    save_matrix_as_txt(source, nn_points, flame_indices);
-
-    // Apply the same distance filter to create filtered matrices
-    float max_distance = 0.02f;
+    // Build matched point set dynamically (only valid matches)
     std::vector<int> valid_indices;
+    std::vector<Vector3f> valid_source_points;
+    std::vector<Vector3f> valid_nn_points;
     
     for (int i = 0; i < source.cols(); ++i) {
-        float dist = (source.col(i) - nn_points.col(i)).norm();
-        if (dist <= max_distance) {
+        if (nn_indices[i] != 1234) {  // Only add points with valid distances
             valid_indices.push_back(i);
+            valid_source_points.push_back(source.col(i));
+            valid_nn_points.push_back(target.col(nn_indices[i]));
         }
     }
     
-    // Create filtered matrices with only valid points
+    // Convert vectors to matrices
     MatrixXf filtered_source(3, valid_indices.size());
     MatrixXf filtered_nn_points(3, valid_indices.size());
     
     for (int i = 0; i < valid_indices.size(); ++i) {
-        filtered_source.col(i) = source.col(valid_indices[i]);
-        filtered_nn_points.col(i) = nn_points.col(valid_indices[i]);
+        filtered_source.col(i) = valid_source_points[i];
+        filtered_nn_points.col(i) = valid_nn_points[i];
     }
-
-    // for (auto i : flame_indices){
-    //     std::cout << "flame_indices[i]: " << i << std::endl;
-    // }
 
     KNN_Result knn_result;
     knn_result.source = filtered_source;
@@ -187,10 +218,26 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
 
 int main() {
 
-    // TODO: Initialize Flame_Mesh and target MatrixXf properly
-    // For now, this is a placeholder - you'll need to load your data
-    // Flame_Mesh flame_mesh = {v_template_arr, shapedirs_arr, betas};
-    // MatrixXf target = ...; // Your target point cloud
+    std::string input_off = "../data/00001_transform_onlyface.off";
+    std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
+    std::string beta_path = "../optimizer/test_betas_1.txt";
+
+    // Load target point cloud (transformed points)
+    MatrixXf target = load_off_as_matrix(input_off);
+
+    // Load FLAME shape model
+    cnpy::NpyArray v_template_arr = cnpy::npz_load(npz_path, "v_template");
+    cnpy::NpyArray shapedirs_arr = cnpy::npz_load(npz_path, "shapedirs");
+
+    // Load betas (use zeros if not found)
+    size_t num_betas = shapedirs_arr.shape[2];
+
+    std::vector<double> betas = std::vector<double>(num_betas, 0.0);
+
+    Flame_Mesh flame_mesh = {v_template_arr, shapedirs_arr, betas};
+
+    // Generate FLAME mesh with shape deformation
+    // MatrixXf source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas);
     
     KNN_Result knn_result = knn(flame_mesh, target);
     std::cout << "dimensions of source : " << knn_result.source.cols() << std::endl;

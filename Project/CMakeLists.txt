@@ -54,7 +54,6 @@ target_include_directories(pixel_match PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_I
 target_link_libraries(pixel_match PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
 # KNN executable
-add_executable(knn knn/knn.cpp)
+add_executable(knn knn/knn_merge.cpp)
 target_include_directories(knn PRIVATE ${EIGEN3_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
 target_link_libraries(knn PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLIB::ZLIB)
-
