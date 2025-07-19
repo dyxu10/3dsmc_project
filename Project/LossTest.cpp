@@ -1,7 +1,5 @@
 // LossTest.cpp
-// 用mean的flame脸提取出来的所有点flame2023_mean.txt当作目标点，
-// 直接从flame模型里检索出来的点当作sourcePoints，flame模型的betas当作优化目标。
-// 如果lossfuncton没有问题的话那我的betas优化结果应该全部是0。
+
 
 #include <iostream>
 #include <fstream>
@@ -11,35 +9,60 @@
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
 #include "cnpy.h"
+#include <limits>
+#include <omp.h>
+using MatrixXf = Eigen::MatrixXf;
+using Vector3f = Eigen::Vector3f;
 
 // —— 全局变量 ——
-static Eigen::MatrixXd templateVertices;           
-static std::vector<double>    shapeDirections;          
+static Eigen::MatrixXd templateVertices; // mean脸的模版顶点
+static std::vector<double>    shapeDirections;  
+static std::vector<double> shapeParameters;
 static std::vector<Eigen::Vector3i> faces;
 static int numVertices        = 0;
 static int numShapeParameters = 0;
 static int numFaces           = 0;
 static std::vector<int> indexList;
-static const int NUM_MACTHED_POINTS = 3430;
-static const int ITERATION = 2; //用来记录这是第几轮优化（loss+knn算一轮）
+static int ITERATION = 1; //用来记录这是第几轮优化（loss+knn算一轮）
+static const int MAX_ITERATION = 3; // 设置一共跑几轮
 
-// 读取 3248 × 3 的目标点 (x y z 每行)，转换成3 × 3248的矩阵
-static Eigen::MatrixXd loadTargetPoints(const std::string &filePath) {
-    std::ifstream inputStream(filePath);
-    if (!inputStream)
-        throw std::runtime_error("Cannot open target points file: " + filePath);
 
-    Eigen::MatrixXd targetMatrix(3, NUM_MACTHED_POINTS);
-    for (int i = 0; i < NUM_MACTHED_POINTS; ++i) {
-        double x, y, z;
-        if (!(inputStream >> x >> y >> z))
-            throw std::runtime_error("Malformed or too few lines in target points file");
-        targetMatrix(0, i) = x;
-        targetMatrix(1, i) = y;
-        targetMatrix(2, i) = z;
+// —— knn用到的结构 ——
+struct KNN_Result{
+    Eigen::MatrixXf source;
+    Eigen::MatrixXf nn_points;
+    std::vector<int> flame_indices;
+};
+
+struct Flame_Mesh{
+    const cnpy::NpyArray& v_template_arr;
+    const cnpy::NpyArray& shapedirs_arr;
+    const std::vector<double>& betas;
+
+    Flame_Mesh(const cnpy::NpyArray& v, const cnpy::NpyArray& s, const std::vector<double>& b)
+    : v_template_arr(v), shapedirs_arr(s), betas(b) {}
+};
+
+// β 的正则化残差项
+struct RegularizationCost {
+    RegularizationCost(double lambda, int n_params)
+        : lambda_(lambda), n_params_(n_params) {}
+
+    template <typename T>
+    bool operator()(T const* const* parameters, T* residuals) const {
+        const T* beta = parameters[0];
+        for (int i = 0; i < n_params_; ++i) {
+            residuals[i] = T(std::sqrt(lambda_)) * beta[i];
+        }
+        return true;
     }
-    return targetMatrix;
-}
+
+private:
+    double lambda_;
+    int n_params_;
+};
+
+
 
 // 点到点残差
 struct P2PointResidual {
@@ -48,7 +71,7 @@ struct P2PointResidual {
 
     template <typename T>
     bool operator()(T const* const* parameters, T* residuals) const {
-        const T* shapeParams = parameters[0];
+        const T* betas = parameters[0];
 
         // 模板顶点
         T px = T(templateVertices(vertexIndex_, 0));
@@ -57,10 +80,10 @@ struct P2PointResidual {
 
         // 叠加形变
         for (int k = 0; k < numShapeParameters; ++k) {
-            T w = shapeParams[k];
-            px += T(shapeDirections[(vertexIndex_*3 + 0)*numShapeParameters + k]) * w;
-            py += T(shapeDirections[(vertexIndex_*3 + 1)*numShapeParameters + k]) * w;
-            pz += T(shapeDirections[(vertexIndex_*3 + 2)*numShapeParameters + k]) * w;
+            T beta = betas[k];
+            px += T(shapeDirections[(vertexIndex_*3 + 0)*numShapeParameters + k]) * beta;
+            py += T(shapeDirections[(vertexIndex_*3 + 1)*numShapeParameters + k]) * beta;
+            pz += T(shapeDirections[(vertexIndex_*3 + 2)*numShapeParameters + k]) * beta;
         }
 
         residuals[0] = px - T(targetPoint_(0));
@@ -73,48 +96,203 @@ struct P2PointResidual {
     Eigen::Vector3d targetPoint_;
 };
 
-void saveVerticesAsTxt(const Eigen::MatrixXd& vertices, const std::string& path) {
-    std::ofstream out(path);
-    if (!out.is_open()) {
-        std::cerr << "Could not open file to write vertices: " << path << std::endl;
-        return;
-    }
 
-    for (int i = 0; i < vertices.rows(); ++i) {
-        out << vertices(i, 0) << " "
-            << vertices(i, 1) << " "
-            << vertices(i, 2) << "\n";
+
+// Apply shape blendshapes: v_template + shapedirs * betas
+MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
+                                 const cnpy::NpyArray& shapedirs_arr,
+                                 const std::vector<double>& betas) {
+    const double* v_data = v_template_arr.data<double>();
+    const double* s_data = shapedirs_arr.data<double>();
+
+    int N = v_template_arr.shape[0];
+    int B = shapedirs_arr.shape[2];
+
+    MatrixXf vertices(3, N);
+    for (int i = 0; i < N; ++i) {
+        Vector3f v(static_cast<float>(v_data[i * 3 + 0]),
+                   static_cast<float>(v_data[i * 3 + 1]),
+                   static_cast<float>(v_data[i * 3 + 2]));
+        for (int b = 0; b < B; ++b) {
+            v.x() += static_cast<float>(s_data[i * 3 * B + 0 * B + b]) * betas[b];
+            v.y() += static_cast<float>(s_data[i * 3 * B + 1 * B + b]) * betas[b];
+            v.z() += static_cast<float>(s_data[i * 3 * B + 2 * B + b]) * betas[b];
+        }
+        vertices.col(i) = v;
     }
-    out.close();
-    std::cout << "Saved mean FLAME face to " << path << std::endl;
+    return vertices;
 }
 
-//用来读取index然后存为indexList的
-std::vector<int> loadIndexList(const std::string& filePath) {
-    std::ifstream file(filePath);
 
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open index file: " + filePath);
+void save_matrix_as_txt(const MatrixXf& source, const MatrixXf& nn_points, std::vector<int>& flame_indices){
+
+    //flame.txt : source
+    //matched.txt : nn_points
+    //indices.txt : index of source
+
+    // Open output files
+    std::ofstream flame_out("../Data/optimize_test/flame_" + std::to_string(ITERATION) + ".txt");
+    std::ofstream match_out("../Data/optimize_test/matched_" + std::to_string(ITERATION) + ".txt");
+    std::ofstream index_out("../Data/optimize_test/indices_" + std::to_string(ITERATION) + ".txt");
+
+        // Configurable distance threshold
+    float max_distance = 0.02f;
+    int valid_count = 0;
+    float total_distance = 0.0f;
+    float max_dist_observed = 0.0f;
+
+    // Write filtered matched points and compute distance statistics
+    for (int i = 0; i < source.cols(); ++i) {
+        float dist = (source.col(i) - nn_points.col(i)).norm();
+        if (dist > max_distance) continue;
+
+        flame_out << source(0, i) << " " << source(1, i) << " " << source(2, i) << "\n";
+        match_out << nn_points(0, i) << " " << nn_points(1, i) << " " << nn_points(2, i) << "\n";
+        index_out << i << "\n";  // Only output FLAME vertex index
+        flame_indices.push_back(i);
+
+        // std::cout << "flame_indices[i]: " << flame_indices[i] << std::endl;
+
+        total_distance += dist;
+        if (dist > max_dist_observed) max_dist_observed = dist;
+
+        ++valid_count;
     }
-
-    int idx;
-    while (file >> idx) {
-        indexList.push_back(idx);
+    // Print summary
+    if (valid_count > 0) {
+        float mean_distance = total_distance / valid_count;
+        std::cout << "KNN with betas completed. " << valid_count << " valid matches." << std::endl;
+        std::cout << "Mean distance: " << mean_distance << std::endl;
+        std::cout << "Max distance: " << max_dist_observed << std::endl;
+    } else {
+        std::cout << "No valid matches found (all distances exceed threshold)." << std::endl;
     }
-
-    file.close();
-    return indexList;
 }
+
+// Load OFF file as 3xN matrix
+MatrixXf load_off_as_matrix(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in.is_open()) throw std::runtime_error("Cannot open file: " + filename);
+
+    std::string header;
+    in >> header;
+    if (header != "OFF" && header != "COFF") throw std::runtime_error("Not an OFF/COFF file");
+
+    int numVertices, numFaces, dummy;
+    in >> numVertices >> numFaces >> dummy;
+    MatrixXf mat(3, numVertices);
+    for (int i = 0; i < numVertices; ++i) {
+        float x, y, z;
+        in >> x >> y >> z;
+        mat(0, i) = x;
+        mat(1, i) = y;
+        mat(2, i) = z;
+        if (header == "COFF") { int r, g, b, a; in >> r >> g >> b >> a; }
+    }
+    return mat;
+}
+
+// Parallel KNN search
+std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& target) {
+    std::vector<int> nn_indices(source.cols(), -1);
+    #pragma omp parallel for
+    for (int i = 0; i < source.cols(); ++i) {
+        float min_dist = std::numeric_limits<float>::max();
+        int min_j = -1;
+        for (int j = 0; j < target.cols(); ++j) {
+            float dist = (source.col(i) - target.col(j)).squaredNorm();
+            if (dist < min_dist) {
+                min_dist = dist;
+                min_j = j;
+            }
+        }
+        nn_indices[i] = min_j;
+    }
+    return nn_indices;
+}
+
+KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
+
+    //Source : FLAME mesh
+    //Target : transformed points(our image point cloud)
+    //Source changes after each iteration of optimizer
+    //Target is fixed
+    //Return : source and nn_points
+
+    // Load FLAME shape model
+    cnpy::NpyArray v_template_arr = flame_mesh.v_template_arr;
+    cnpy::NpyArray shapedirs_arr = flame_mesh.shapedirs_arr;
+    // std::vector<double> betas = flame_mesh.betas;
+    const std::vector<double>& betas = flame_mesh.betas;
+
+    MatrixXf source;
+
+    // Add betas to betas_vector
+    source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas);
+    
+
+    // Generate FLAME mesh with shape deformation
+
+
+    // Run parallel KNN matching
+    // Source : FLAME mesh
+    // Target : transformed points(our image point cloud)
+    // knn result : nearest point of source.col(i) in target = target.col(nn_indices[i])
+    std::vector<int> nn_indices = knn_search_parallel(source, target);
+
+    // Build matched point set
+    // nearest point of source.col(i) in target = nn_points.col(i)
+    MatrixXf nn_points(3, source.cols());
+    for (int i = 0; i < source.cols(); ++i)
+        nn_points.col(i) = target.col(nn_indices[i]);
+
+
+    std::vector<int> flame_indices;
+    // Write filtered matched points and compute distance statistics
+    // save_matrix_as_txt(source, nn_points, flame_indices);
+
+    // Apply the same distance filter to create filtered matrices
+    float max_distance = 0.02f;
+    std::vector<int> valid_indices;
+    
+    for (int i = 0; i < source.cols(); ++i) {
+        float dist = (source.col(i) - nn_points.col(i)).norm();
+        if (dist <= max_distance) {
+            valid_indices.push_back(i);
+        }
+    }
+    
+    // Create filtered matrices with only valid points
+    MatrixXf filtered_source(3, valid_indices.size());
+    MatrixXf filtered_nn_points(3, valid_indices.size());
+    
+    for (int i = 0; i < valid_indices.size(); ++i) {
+        filtered_source.col(i) = source.col(valid_indices[i]);
+        filtered_nn_points.col(i) = nn_points.col(valid_indices[i]);
+    }
+
+    // for (auto i : flame_indices){
+    //     std::cout << "flame_indices[i]: " << i << std::endl;
+    // }
+
+    KNN_Result knn_result;
+    knn_result.source = filtered_source;
+    knn_result.nn_points = filtered_nn_points;
+    knn_result.flame_indices = valid_indices;
+
+    return knn_result;
+}
+
+
 
 int main() {
-    const std::string flameModel  = "../model/FLAME2023/flame2023_new.npz";
-    const std::string targetsFile = "../Data/3d/knn/matched_" + std::to_string(ITERATION) + ".txt";
-    //读取用到的flame点的index并存在indexList里
-    std::string indexFile = "../Data/3d/knn/indices_" + std::to_string(ITERATION) + ".txt";
-    indexList = loadIndexList(indexFile);
+    // 1. 读取目标点云，加载 FLAME 模型
+    const std::string input_off = "../model/mesh/00001_transform_onlyface.off";
+    // Load target point cloud (transformed points)
+    MatrixXf target = load_off_as_matrix(input_off);
 
-    // 1. 加载 FLAME 模型
-    auto vTpl   = cnpy::npz_load(flameModel, "v_template");
+    const std::string flameModel  = "../model/FLAME2023/flame2023_new.npz";
+    auto vTpl  = cnpy::npz_load(flameModel, "v_template");
     auto sDirs  = cnpy::npz_load(flameModel, "shapedirs");
     // auto fArr   = cnpy::npz_load(flameModel, "faces");
 
@@ -122,7 +300,7 @@ int main() {
     numShapeParameters = int(sDirs.shape[2]);
     // numFaces           = int(fArr.shape[0]);
 
-    // 模板顶点（double）
+    // 初始化模板顶点（double）
     templateVertices.resize(numVertices, 3);
     const double* vtpl_data = vTpl.data<double>();
 
@@ -132,8 +310,7 @@ int main() {
         templateVertices(i, 2) = vtpl_data[i * 3 + 2];  // z
     }
 
-
-    // 形变方向
+    // 初始化形变方向
     shapeDirections.resize(numVertices * 3 * numShapeParameters);
     const double* sdir_data = sDirs.data<double>();
     for (int v = 0; v < numVertices; ++v) {
@@ -148,78 +325,73 @@ int main() {
         }
     }
 
-    //这是用来根据flame模型（.npz）的顺序生成mean点的，用于测试loss
-    // saveVerticesAsTxt(templateVertices, "../Data/3d/test_mean_new.txt");
-    // const std::string targetsFile = "../Data/3d/test_mean_new.txt";
+    // 2. 初始化betas参数
+    shapeParameters.assign(numShapeParameters, 0.0);
 
+    while(ITERATION <= MAX_ITERATION){   
+        std::cout << "now start with "<< ITERATION << "-th iteration of knn.";
+        // 3.1 knn(vTpl,sDirs,shapeParameters)
+        Flame_Mesh mesh(vTpl,sDirs,shapeParameters);
+        KNN_Result knn_result = knn(mesh, target);
 
-    // 2. 加载目标点 (3 × NUM_MACTHED_POINTS)---3248
-    Eigen::MatrixXd targets = loadTargetPoints(targetsFile);
-
-    // 3. 初始化参数
-    std::vector<double> shapeParameters(numShapeParameters, 0.0);
-
-    // 5. 构造 Ceres 问题
-    ceres::Problem problem;
-    problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
-
-    // 初始化（后脑勺部分）
-    int indexIdx = 0; // 用来检索indexList和matched target matrix的idx
-    std::ofstream matchedFlameFile("../Data/3d/knn/matchedFlame_" + std::to_string(ITERATION) + ".txt");
-
-    //numVertices = 5023, indexList.size() = 3248;
-    for (int vi = 0; vi < numVertices; ++vi) {
-
-        //如果indexList里的所有点都已经计算loss了，跳出for循环
-        if (indexIdx >= indexList.size()) break;
-
-        // 如果当前点不是 indexList 中的目标点，跳过
-        if(indexList[indexIdx] != vi) continue;
-
-        //我担心flame[indexList[indexIdx]]!=flame.txt[indexIdx]
-        //记录一下所有没有被跳过的点，看是否跟flame.txt里匹配
-        matchedFlameFile << templateVertices(vi, 0) << " " << templateVertices(vi, 1) << " " << templateVertices(vi, 2)<< "\n";
-
-        // P2P loss
-        auto* cost_p2p = new ceres::DynamicAutoDiffCostFunction<P2PointResidual>(
-            new P2PointResidual(vi, targets.col(indexIdx).eval())
-        );
-        cost_p2p->AddParameterBlock(numShapeParameters);
-        cost_p2p->SetNumResiduals(3);
-        problem.AddResidualBlock(cost_p2p, nullptr, shapeParameters.data());
+        std::cout << "dimensions of source : " << knn_result.source.cols() << std::endl;
+        std::cout << "dimensions of nn_points : " << knn_result.nn_points.cols() << std::endl;
         
-        
-        //一共3248个匹配点，所以indexIdx最后应该等于3248（从0开始）
-        //好吧，每次knn完后数量不确定，但应该等于NUM_MACTHED_POINTS
-        indexIdx++; 
+        // 3.2 update indexList, targetsmatrix
+        // 加载目标点
+        Eigen::MatrixXd matchedTargets = knn_result.nn_points.cast<double>();
 
+        // update indexList
+        indexList = knn_result.flame_indices;
+
+
+        // 4. optimization process    
+        std::cout << "now start with "<< ITERATION << "-th iteration of optimization.";
+
+        // 4.1 构造 Ceres 问题
+        ceres::Problem problem;
+        problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
+
+        for (int i = 0; i < indexList.size(); ++i) {
+            int vi = indexList[i];
+            auto* cost_p2p = new ceres::DynamicAutoDiffCostFunction<P2PointResidual>(
+                new P2PointResidual(vi, matchedTargets.col(i).eval())
+            );
+            cost_p2p->AddParameterBlock(numShapeParameters);
+            cost_p2p->SetNumResiduals(3);
+            problem.AddResidualBlock(cost_p2p, nullptr, shapeParameters.data());
+        }
+
+        const double lambda = 1e-5; // 0.1
+        auto* regCost = new RegularizationCost(lambda, numShapeParameters);
+
+        auto* regFunc = new ceres::DynamicAutoDiffCostFunction<RegularizationCost>(regCost);
+        regFunc->AddParameterBlock(numShapeParameters);
+        regFunc->SetNumResiduals(numShapeParameters);
+        problem.AddResidualBlock(regFunc, nullptr, shapeParameters.data());
+
+        // 4.2. 求解
+        // 优化器设置是直接照抄exercise5里的设置
+        ceres::Solver::Options opts;
+        opts.trust_region_strategy_type  = ceres::LEVENBERG_MARQUARDT;
+        opts.use_nonmonotonic_steps       = false;
+        opts.linear_solver_type           = ceres::DENSE_QR;
+        opts.minimizer_progress_to_stdout = 1;
+        opts.num_threads                  = 8;
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(opts, &problem, &summary);
+        std::cout << summary.FullReport() << std::endl;
+
+
+        // 5. 保存 betas
+        std::ofstream betaFile("../Data/optimize_test/test_betas_" + std::to_string(ITERATION) + ".txt");
+        for (double b : shapeParameters) betaFile << b << "\n";
+        betaFile.close();
+        std::cout << "Saved shape parameters to test_betas_" + std::to_string(ITERATION) + ".txt\n";
+
+        ITERATION ++;
     }
-
-    // 6. 求解
-    // 优化器设置是直接照抄exercise5里的设置
-    ceres::Solver::Options opts;
-    opts.trust_region_strategy_type  = ceres::LEVENBERG_MARQUARDT;
-    opts.use_nonmonotonic_steps       = false;
-    opts.linear_solver_type           = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = 1;
-    opts.num_threads                  = 8;
-
-    ceres::Solver::Summary summary;
-    ceres::Solve(opts, &problem, &summary);
-    std::cout << summary.FullReport() << std::endl;
-
-
-    //关闭
-    matchedFlameFile.close();
-    // 8. 保存 betas
-    std::ofstream betaFile("../Data/3d/knn/test_betas_" + std::to_string(ITERATION) + ".txt");
-    for (double b : shapeParameters) betaFile << b << "\n";
-    betaFile.close();
-    std::cout << "Saved shape parameters to test_betas_" + std::to_string(ITERATION) + ".txt\n";
-    std::cout << "Indexidx: " << indexIdx << "\n";
-    std::cout << "NUM_MACTHED_POINTS: " << NUM_MACTHED_POINTS << "\n";
-    std::cout << "如果相等则没问题" << "\n";
-
 
 
     return 0;
