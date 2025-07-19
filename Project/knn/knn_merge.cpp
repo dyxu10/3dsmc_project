@@ -153,22 +153,46 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // Write filtered matched points and compute distance statistics
     save_matrix_as_txt(source, nn_points, flame_indices);
 
+    // Apply the same distance filter to create filtered matrices
+    float max_distance = 0.02f;
+    std::vector<int> valid_indices;
+    
+    for (int i = 0; i < source.cols(); ++i) {
+        float dist = (source.col(i) - nn_points.col(i)).norm();
+        if (dist <= max_distance) {
+            valid_indices.push_back(i);
+        }
+    }
+    
+    // Create filtered matrices with only valid points
+    MatrixXf filtered_source(3, valid_indices.size());
+    MatrixXf filtered_nn_points(3, valid_indices.size());
+    
+    for (int i = 0; i < valid_indices.size(); ++i) {
+        filtered_source.col(i) = source.col(valid_indices[i]);
+        filtered_nn_points.col(i) = nn_points.col(valid_indices[i]);
+    }
+
     // for (auto i : flame_indices){
     //     std::cout << "flame_indices[i]: " << i << std::endl;
     // }
 
     KNN_Result knn_result;
-    knn_result.source = source;
-    knn_result.nn_points = nn_points;
-    knn_result.flame_indices = flame_indices;
+    knn_result.source = filtered_source;
+    knn_result.nn_points = filtered_nn_points;
+    knn_result.flame_indices = valid_indices;
 
     return knn_result;
 }
 
 int main() {
 
-    KNN_Result knn_result = knn(true);
-
+    // TODO: Initialize Flame_Mesh and target MatrixXf properly
+    // For now, this is a placeholder - you'll need to load your data
+    // Flame_Mesh flame_mesh = {v_template_arr, shapedirs_arr, betas};
+    // MatrixXf target = ...; // Your target point cloud
+    
+    KNN_Result knn_result = knn(flame_mesh, target);
     std::cout << "dimensions of source : " << knn_result.source.cols() << std::endl;
     std::cout << "dimensions of nn_points : " << knn_result.nn_points.cols() << std::endl;
 
