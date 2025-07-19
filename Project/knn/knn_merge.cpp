@@ -77,7 +77,7 @@ std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& tar
         nn_indices[i] = min_j;
         // Compare the actual distance (sqrt of squared distance) with threshold
         if (std::sqrt(min_dist) > distance_threshold) {
-            nn_indices[i] = 1234;
+            nn_indices[i] = -1;
         }
     }
 
@@ -192,7 +192,7 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     std::vector<Vector3f> valid_nn_points;
     
     for (int i = 0; i < source.cols(); ++i) {
-        if (nn_indices[i] != 1234) {  // Only add points with valid distances
+        if (nn_indices[i] != -1) {  // Only add points with valid distances
             valid_indices.push_back(i);
             valid_source_points.push_back(source.col(i));
             valid_nn_points.push_back(target.col(nn_indices[i]));
