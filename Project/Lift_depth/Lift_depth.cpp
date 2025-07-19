@@ -142,10 +142,10 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
         throw std::runtime_error("Intrinsic file must contain at least 4 floats: fx, fy, cx, cy");
     }
 
-    float fx = vals[0];
-    float fy = vals[1];
-    float cx = vals[2];
-    float cy = vals[3];
+    float cx = vals[0];
+    float cy = vals[1];
+    float fx = vals[2];
+    float fy = vals[3];
 
     Eigen::Matrix3f intrinsic = Eigen::Matrix3f::Identity();
     intrinsic(0, 0) = fx;
