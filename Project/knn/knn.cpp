@@ -4,13 +4,28 @@
 #include <Eigen/Dense>
 #include <limits>
 #include <omp.h>
-#include <fstream>
 #include "cnpy.h"
-#include <random>
 
 using namespace std;
 using namespace Eigen;
 
+
+struct KNN_Result{
+    Eigen::MatrixXf source;
+    Eigen::MatrixXf nn_points;
+    std::vector<int> flame_indices;
+};
+
+// Forward declarations
+MatrixXf load_off_as_matrix(const std::string& filename);
+std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& target);
+VectorXd load_betas(const std::string& filepath, size_t num_betas);
+MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
+                                 const cnpy::NpyArray& shapedirs_arr,
+                                 const VectorXd& betas);
+void save_matrix_as_txt(const MatrixXf& source, const MatrixXf& nn_points, std::vector<int>& flame_indices);
+
+// Load OFF file as 3xN matrix
 MatrixXf load_off_as_matrix(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open()) throw std::runtime_error("Cannot open file: " + filename);
@@ -21,8 +36,6 @@ MatrixXf load_off_as_matrix(const std::string& filename) {
 
     int numVertices, numFaces, dummy;
     in >> numVertices >> numFaces >> dummy;
-    std::cout << "numVertices: " << numVertices << std::endl;
-
     MatrixXf mat(3, numVertices);
     for (int i = 0; i < numVertices; ++i) {
         float x, y, z;
@@ -30,59 +43,15 @@ MatrixXf load_off_as_matrix(const std::string& filename) {
         mat(0, i) = x;
         mat(1, i) = y;
         mat(2, i) = z;
-        // skip color if COFF
-        if (header == "COFF") {
-            int r, g, b, a;
-            in >> r >> g >> b >> a;
-        }
+        if (header == "COFF") { int r, g, b, a; in >> r >> g >> b >> a; }
     }
     return mat;
 }
 
-MatrixXf load_obj_as_matrix(const std::string& filename) {
-    std::ifstream in(filename);
-    if (!in.is_open()) throw std::runtime_error("Cannot open file: " + filename);
-
-    std::vector<Vector3f> vertices;
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.size() > 1 && line[0] == 'v' && line[1] == ' ') {
-            std::istringstream iss(line.substr(2));
-            float x, y, z;
-            iss >> x >> y >> z;
-            vertices.emplace_back(x, y, z);
-        }
-    }
-    MatrixXf mat(3, vertices.size());
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        mat.col(i) = vertices[i];
-    }
-    return mat;
-}
-
-void save_matrix(const MatrixXf& mat, const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out.is_open()) throw std::runtime_error("Cannot open output file");
-    out << mat.rows() << " " << mat.cols() << "\n";
-    out << mat << "\n";
-}
-
-void save_matrix_as_off(const MatrixXf& mat, const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out.is_open()) throw std::runtime_error("Cannot open output file");
-
-    int numVertices = mat.cols();
-    out << "OFF\n";
-    out << numVertices << " 0 0\n";
-    for (int i = 0; i < numVertices; ++i) {
-        out << mat(0, i) << " " << mat(1, i) << " " << mat(2, i) << "\n";
-    }
-}
-
-// Returns a vector of indices: for each source point, the index of its nearest neighbor in target
-std::vector<int> knn_search(const MatrixXf& source, const MatrixXf& target) {
+// Parallel KNN search
+std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& target) {
     std::vector<int> nn_indices(source.cols(), -1);
-
+    #pragma omp parallel for
     for (int i = 0; i < source.cols(); ++i) {
         float min_dist = std::numeric_limits<float>::max();
         int min_j = -1;
@@ -93,112 +62,203 @@ std::vector<int> knn_search(const MatrixXf& source, const MatrixXf& target) {
                 min_j = j;
             }
         }
-        nn_indices[i] = min_j; // index of closest point in target for source.col(i)
+        nn_indices[i] = min_j;
     }
     return nn_indices;
 }
 
-MatrixXf read_npz_to_matrix(const std::string& npz_path) {
-    bool GENERATE_RANDOM_FACE = false;
+// Try load betas file (returns 300x1 vector or zeros if not found)
+VectorXd load_betas(const std::string& filepath, size_t num_betas) {
+    VectorXd betas = VectorXd::Zero(num_betas);
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cout << "Betas file not found, using zeros." << std::endl;
+        return betas;
+    }
+    for (size_t i = 0; i < num_betas && file >> betas(i); ++i);
+    return betas;
+}
 
-    
-
-    // Load v_template
-    cnpy::NpyArray v_template_arr = cnpy::npz_load(npz_path, "v_template");
- 
-
-    size_t num_vertices = v_template_arr.shape[0];
+// Apply shape blendshapes: v_template + shapedirs * betas
+MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
+                                 const cnpy::NpyArray& shapedirs_arr,
+                                 const VectorXd& betas) {
     const double* v_data = v_template_arr.data<double>();
-
-    // Load faces
-    cnpy::NpyArray faces_arr = cnpy::npz_load(npz_path, "faces");
-
-    size_t num_faces = faces_arr.shape[0];
-    const uint32_t* f_data = faces_arr.data<uint32_t>();
-
-    // Load shapedirs
-    cnpy::NpyArray shapedirs_arr = cnpy::npz_load(npz_path, "shapedirs");
-
-    size_t num_betas = shapedirs_arr.shape[2];  // should be 400
-    std::cout << "Num of num_betas is " << num_betas << std::endl;
     const double* s_data = shapedirs_arr.data<double>();
 
+    int N = v_template_arr.shape[0];
+    int B = shapedirs_arr.shape[2];
 
-    //Prepare faces
-    std::vector<Eigen::Vector3i> faces(num_faces);
-    for (size_t i = 0; i < num_faces; ++i) {
-        faces[i] = Eigen::Vector3i(static_cast<int>(f_data[i * 3 + 0]),
-                                   static_cast<int>(f_data[i * 3 + 1]),
-                                   static_cast<int>(f_data[i * 3 + 2]));
-    }
-
-    // Generate random betas
-    // Create a normal distribution with mean=0, stddev=1 (same as np.random.randn / chumpy)
-    std::default_random_engine rng(std::random_device{}());
-    std::normal_distribution<double> normal_dist(0.0, 1.0);
-    std::vector<Eigen::Vector3f> vertices(num_vertices);
-     
-    // If random face not enabled, use v_template directly
-    for (size_t v = 0; v < num_vertices; ++v) {
-        vertices[v] = Eigen::Vector3f(static_cast<float>(v_data[v * 3 + 0]),
-                                        static_cast<float>(v_data[v * 3 + 1]),
-                                        static_cast<float>(v_data[v * 3 + 2]));
+    MatrixXf vertices(3, N);
+    for (int i = 0; i < N; ++i) {
+        Vector3f v(static_cast<float>(v_data[i * 3 + 0]),
+                   static_cast<float>(v_data[i * 3 + 1]),
+                   static_cast<float>(v_data[i * 3 + 2]));
+        for (int b = 0; b < B; ++b) {
+            v.x() += static_cast<float>(s_data[i * 3 * B + 0 * B + b]) * betas(b);
+            v.y() += static_cast<float>(s_data[i * 3 * B + 1 * B + b]) * betas(b);
+            v.z() += static_cast<float>(s_data[i * 3 * B + 2 * B + b]) * betas(b);
         }
-        std::cout << "Exporting neutral v_template mesh." << std::endl;
-    
-
-
-    // === Create 3xN matrix from vertices ===
-
-    // Create a 3 x num_vertices matrix (double precision)
-    Eigen::MatrixXd face_points(3, num_vertices);
-
-    for (size_t v = 0; v < num_vertices; ++v) {
-        face_points(0, v) = static_cast<double>(vertices[v].x());
-        face_points(1, v) = static_cast<double>(vertices[v].y());
-        face_points(2, v) = static_cast<double>(vertices[v].z());
+        vertices.col(i) = v;
     }
+    return vertices;
+}
 
-    return face_points.cast<float>();
+void save_matrix_as_txt(const MatrixXf& source, const MatrixXf& nn_points, std::vector<int>& flame_indices){
+
+    //flame.txt : source
+    //matched.txt : nn_points
+    //indices.txt : index of source
+
+    // Open output files
+    std::ofstream flame_out("../optimizer/flame.txt");
+    std::ofstream match_out("../optimizer/matched.txt");
+    std::ofstream index_out("../optimizer/indices.txt");
+
+        // Configurable distance threshold
+    float max_distance = 0.02f;
+    int valid_count = 0;
+    float total_distance = 0.0f;
+    float max_dist_observed = 0.0f;
+
+    // Write filtered matched points and compute distance statistics
+    for (int i = 0; i < source.cols(); ++i) {
+        float dist = (source.col(i) - nn_points.col(i)).norm();
+        if (dist > max_distance) continue;
+
+        flame_out << source(0, i) << " " << source(1, i) << " " << source(2, i) << "\n";
+        match_out << nn_points(0, i) << " " << nn_points(1, i) << " " << nn_points(2, i) << "\n";
+        index_out << i << "\n";  // Only output FLAME vertex index
+        flame_indices.push_back(i);
+
+        // std::cout << "flame_indices[i]: " << flame_indices[i] << std::endl;
+
+        total_distance += dist;
+        if (dist > max_dist_observed) max_dist_observed = dist;
+
+        ++valid_count;
+    }
+    // Print summary
+    if (valid_count > 0) {
+        float mean_distance = total_distance / valid_count;
+        std::cout << "KNN with betas completed. " << valid_count << " valid matches." << std::endl;
+        std::cout << "Mean distance: " << mean_distance << std::endl;
+        std::cout << "Max distance: " << max_dist_observed << std::endl;
+    } else {
+        std::cout << "No valid matches found (all distances exceed threshold)." << std::endl;
+    }
+}
+
+MatrixPair knn(bool first_time = true, std::vector<double> betas, const MatrixXf& sourceMatrix = MatrixXf()){
+
+    //Source : FLAME mesh
+    //Target : transformed points(our image point cloud)
+    //Source changes after each iteration of optimizer
+    //Target is fixed
+    //Return : source and nn_points
+
+    // Load target point cloud (transformed points)
+    std::string input_off = "../data/00001_transform_onlyface.off";
+    MatrixXf target = load_off_as_matrix(input_off);
+    MatrixXf source;
+
+    
+    
+    std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
+    std::string beta_path = "../optimizer/test_betas_1.txt";
+
+    // Load FLAME shape model
+    cnpy::NpyArray v_template_arr = cnpy::npz_load(npz_path, "v_template");
+    cnpy::NpyArray shapedirs_arr = cnpy::npz_load(npz_path, "shapedirs");
+
+    // Load betas (use zeros if not found)
+    size_t num_betas = shapedirs_arr.shape[2];
+    if (first_time){ VectorXd betas = load_betas(beta_path, num_betas);}
+    else{ betas = betas;}
+
+    // Generate FLAME mesh with shape deformation
+    source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas);
+
+
+    // Run parallel KNN matching
+    // Source : FLAME mesh
+    // Target : transformed points(our image point cloud)
+    // knn result : nearest point of source.col(i) in target = target.col(nn_indices[i])
+    std::vector<int> nn_indices = knn_search_parallel(source, target);
+
+    // Build matched point set
+    // nearest point of source.col(i) in target = nn_points.col(i)
+    MatrixXf nn_points(3, source.cols());
+    for (int i = 0; i < source.cols(); ++i)
+        nn_points.col(i) = target.col(nn_indices[i]);
+
+
+    std::vector<int> flame_indices;
+    // Write filtered matched points and compute distance statistics
+    save_matrix_as_txt(source, nn_points, flame_indices);
+
+    // for (auto i : flame_indices){
+    //     std::cout << "flame_indices[i]: " << i << std::endl;
+    // }
+
+    KNN_Result knn_result;
+    knn_result.source = source;
+    knn_result.nn_points = nn_points;
+    knn_result.flame_indices = flame_indices;
+
+    return knn_result;
 }
 
 int main() {
-    std::string input_off = "../data/00001_transform_onlyface.off";
-    // std::string output_txt = "../data/face/00001_pointcloud_matrix.txt";
-    MatrixXf face = load_off_as_matrix(input_off);
-    std::cout << "Loaded matrix of size: " << face.rows() << "x" << face.cols() << std::endl;
+    // std::string input_off = "../data/00001_transform_onlyface.off";
+    // std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
+    // std::string beta_path = "../optimizer/test_betas_1.txt";
 
-    // std::string mm_head_path = "../model/mesh/flame2023_no_jaw.obj";
-    // MatrixXf mm_head = load_obj_as_matrix(mm_head_path);
-    // std::cout << "mm_head: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
+    // // Load target point cloud (transformed points)
+    // MatrixXf target = load_off_as_matrix(input_off);
 
-    std::string mm_head_path = "../model/mesh/flame2023_no_jaw.obj";
-    MatrixXf mm_head = read_npz_to_matrix(mm_head_path);
-    std::cout << "The dimension of mm_head is: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
+    // // Load FLAME shape model
+    // cnpy::NpyArray v_template_arr = cnpy::npz_load(npz_path, "v_template");
+    // cnpy::NpyArray shapedirs_arr = cnpy::npz_load(npz_path, "shapedirs");
 
-    std::vector<int> nn_indices = knn_search(mm_head, face); // mm_head: 3xN1, face: 3xN2
+    // // Load betas (use zeros if not found)
+    // size_t num_betas = shapedirs_arr.shape[2];
+    // VectorXd betas = load_betas(beta_path, num_betas);
 
-    for (int i = 0; i < mm_head.cols(); ++i) {
-        int nn_idx = nn_indices[i]; // index in face
-        float distance = (mm_head.col(i) - face.col(nn_idx)).norm();
-        std::cout << "Nearest neighbor of point " << i << " in mm_head: " << nn_idx
-                  << " distance: " << distance << std::endl;
-    }
+    // // Generate FLAME mesh with shape deformation
+    // MatrixXf source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas);
 
-    MatrixXf nn_points(3, mm_head.cols());
-    for (int i = 0; i < mm_head.cols(); ++i) {
-        int nn_idx = nn_indices[i];
-        nn_points.col(i) = face.col(nn_idx);
-    }
+    // // Run parallel KNN matching
+    // // Source : FLAME mesh
+    // // Target : transformed points(our image point cloud)
+    // // knn result : nearest point of source.col(i) in target = target.col(nn_indices[i])
+    // std::vector<int> nn_indices = knn_search_parallel(source, target);
 
-    std::cout << "The dimension of nn_points is: " << nn_points.rows() << "x" << nn_points.cols() << std::endl;
-    std::cout << "The dimension of mm_head is: " << mm_head.rows() << "x" << mm_head.cols() << std::endl;
+    // // Build matched point set
+    // // nearest point of source.col(i) in target = nn_points.col(i)
+    // MatrixXf nn_points(3, source.cols());
+    // for (int i = 0; i < source.cols(); ++i)
+    //     nn_points.col(i) = target.col(nn_indices[i]);
 
-    std::string output_off = "../optimizer/knn_searched.off";
-    save_matrix_as_off(nn_points, output_off);
-    std::cout << "Saved nearest neighbor points to " << output_off << std::endl;
 
-    // save_matrix(mat, output_txt);
-    // std::cout << "Saved matrix to " << output_txt << std::endl;
+    // std::vector<int> flame_indices;
+    // // Write filtered matched points and compute distance statistics
+    // save_matrix_as_txt(source, nn_points, flame_indices);
+
+    // for (auto i : flame_indices){
+    //     std::cout << "flame_indices[i]: " << i << std::endl;
+    // }
+
+    // MatrixPair matrix_pair;
+    // matrix_pair.source = source;
+    // matrix_pair.nn_points = nn_points;
+
+    MatrixXf random = MatrixXf::Random(3, 100);
+    KNN_Result knn_result = knn(true, random);
+
+    std::cout << "dimentions of source : " << matrix_pair.source.cols() << std::endl;
+    std::cout << "dimentions of nn_points : " << matrix_pair.nn_points.cols() << std::endl;
+
+
     return 0;
 }
