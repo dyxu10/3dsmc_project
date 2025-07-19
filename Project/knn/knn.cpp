@@ -24,6 +24,7 @@ MatrixXf apply_shape_blendshape(const cnpy::NpyArray& v_template_arr,
                                  const cnpy::NpyArray& shapedirs_arr,
                                  const VectorXd& betas);
 void save_matrix_as_txt(const MatrixXf& source, const MatrixXf& nn_points, std::vector<int>& flame_indices);
+KNN_Result knn(bool first_time = true, const std::vector<double>& betas = std::vector<double>(), const MatrixXf& sourceMatrix = MatrixXf());
 
 // Load OFF file as 3xN matrix
 MatrixXf load_off_as_matrix(const std::string& filename) {
@@ -149,7 +150,7 @@ void save_matrix_as_txt(const MatrixXf& source, const MatrixXf& nn_points, std::
     }
 }
 
-MatrixPair knn(bool first_time = true, std::vector<double> betas, const MatrixXf& sourceMatrix = MatrixXf()){
+KNN_Result knn(bool first_time = true, const std::vector<double>& betas = std::vector<double>(), const MatrixXf& sourceMatrix = MatrixXf()){
 
     //Source : FLAME mesh
     //Target : transformed points(our image point cloud)
@@ -173,11 +174,20 @@ MatrixPair knn(bool first_time = true, std::vector<double> betas, const MatrixXf
 
     // Load betas (use zeros if not found)
     size_t num_betas = shapedirs_arr.shape[2];
-    if (first_time){ VectorXd betas = load_betas(beta_path, num_betas);}
-    else{ betas = betas;}
+    VectorXd betas_vector;
+    
+    if (first_time) {
+        betas_vector = load_betas(beta_path, num_betas);
+    } else {
+        // Convert std::vector<double> to VectorXd
+        betas_vector = VectorXd::Zero(betas.size());
+        for (size_t i = 0; i < betas.size() && i < num_betas; ++i) {
+            betas_vector(i) = betas[i];
+        }
+    }
 
     // Generate FLAME mesh with shape deformation
-    source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas);
+    source = apply_shape_blendshape(v_template_arr, shapedirs_arr, betas_vector);
 
 
     // Run parallel KNN matching
@@ -249,15 +259,15 @@ int main() {
     //     std::cout << "flame_indices[i]: " << i << std::endl;
     // }
 
-    // MatrixPair matrix_pair;
+    // KNN_Result matrix_pair;
     // matrix_pair.source = source;
     // matrix_pair.nn_points = nn_points;
 
-    MatrixXf random = MatrixXf::Random(3, 100);
-    KNN_Result knn_result = knn(true, random);
+    // MatrixXf random = MatrixXf::Random(3, 100);
+    KNN_Result knn_result = knn(true);
 
-    std::cout << "dimentions of source : " << matrix_pair.source.cols() << std::endl;
-    std::cout << "dimentions of nn_points : " << matrix_pair.nn_points.cols() << std::endl;
+    std::cout << "dimensions of source : " << knn_result.source.cols() << std::endl;
+    std::cout << "dimensions of nn_points : " << knn_result.nn_points.cols() << std::endl;
 
 
     return 0;
