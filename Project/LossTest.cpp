@@ -195,6 +195,7 @@ MatrixXf load_off_as_matrix(const std::string& filename) {
 // Parallel KNN search
 std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& target) {
     std::vector<int> nn_indices(source.cols(), -1);
+    float distance_threshold = 0.02f;
     #pragma omp parallel for
     for (int i = 0; i < source.cols(); ++i) {
         float min_dist = std::numeric_limits<float>::max();
@@ -207,7 +208,13 @@ std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& tar
             }
         }
         nn_indices[i] = min_j;
+        // Compare the actual distance (sqrt of squared distance) with threshold
+        if (std::sqrt(min_dist) > distance_threshold) {
+            nn_indices[i] = -1;
+        }
     }
+
+
     return nn_indices;
 }
 
@@ -222,9 +229,7 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // Load FLAME shape model
     cnpy::NpyArray v_template_arr = flame_mesh.v_template_arr;
     cnpy::NpyArray shapedirs_arr = flame_mesh.shapedirs_arr;
-    // std::vector<double> betas = flame_mesh.betas;
-    const std::vector<double>& betas = flame_mesh.betas;
-
+    std::vector<double> betas = flame_mesh.betas;
     MatrixXf source;
 
     // Add betas to betas_vector
@@ -240,40 +245,27 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // knn result : nearest point of source.col(i) in target = target.col(nn_indices[i])
     std::vector<int> nn_indices = knn_search_parallel(source, target);
 
-    // Build matched point set
-    // nearest point of source.col(i) in target = nn_points.col(i)
-    MatrixXf nn_points(3, source.cols());
-    for (int i = 0; i < source.cols(); ++i)
-        nn_points.col(i) = target.col(nn_indices[i]);
-
-
-    std::vector<int> flame_indices;
-    // Write filtered matched points and compute distance statistics
-    // save_matrix_as_txt(source, nn_points, flame_indices);
-
-    // Apply the same distance filter to create filtered matrices
-    float max_distance = 0.02f;
+    // Build matched point set dynamically (only valid matches)
     std::vector<int> valid_indices;
+    std::vector<Vector3f> valid_source_points;
+    std::vector<Vector3f> valid_nn_points;
     
     for (int i = 0; i < source.cols(); ++i) {
-        float dist = (source.col(i) - nn_points.col(i)).norm();
-        if (dist <= max_distance) {
+        if (nn_indices[i] != -1) {  // Only add points with valid distances
             valid_indices.push_back(i);
+            valid_source_points.push_back(source.col(i));
+            valid_nn_points.push_back(target.col(nn_indices[i]));
         }
     }
     
-    // Create filtered matrices with only valid points
+    // Convert vectors to matrices
     MatrixXf filtered_source(3, valid_indices.size());
     MatrixXf filtered_nn_points(3, valid_indices.size());
     
     for (int i = 0; i < valid_indices.size(); ++i) {
-        filtered_source.col(i) = source.col(valid_indices[i]);
-        filtered_nn_points.col(i) = nn_points.col(valid_indices[i]);
+        filtered_source.col(i) = valid_source_points[i];
+        filtered_nn_points.col(i) = valid_nn_points[i];
     }
-
-    // for (auto i : flame_indices){
-    //     std::cout << "flame_indices[i]: " << i << std::endl;
-    // }
 
     KNN_Result knn_result;
     knn_result.source = filtered_source;
