@@ -26,7 +26,7 @@ static int numVertices         = -1;
 static int numShapeParameters  = -1;
 static int numFaces            = -1;
 static int ITERATION           = 1; //用来记录这是第几轮优化（loss+knn算一轮）
-static const int MAX_ITERATION = 3; // 设置一共跑几轮
+static const int MAX_ITERATION = 5; // 设置一共跑几轮
 
 // —— knn用到的结构 ——
 struct KNN_Result{
@@ -316,7 +316,7 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // save_matrix_as_txt(source, nn_points, flame_indices);
 
     // Apply the same distance filter to create filtered matrices
-    float max_distance = 0.02f;
+    float max_distance = 0.01f;
     std::vector<int> valid_indices;
     
     for (int i = 0; i < source.cols(); ++i) {
@@ -352,18 +352,18 @@ int main() {
     // ------- 1 准备工作 ------- 
     std::cout << "reading the model...";
     // 1.1 读取目标点云，加载 FLAME 模型
-    const std::string input_off = "../model/mesh/00001_transform_onlyface.off";
+    const std::string input_off = "../model/mesh/transformed_00028.off";
     // Load target point cloud (transformed points)
     MatrixXf target = load_off_as_matrix(input_off);
 
     const std::string flameModel  = "../model/FLAME2023/face_only_mesh.npz";
     auto vTpl  = cnpy::npz_load(flameModel, "v_template");
     auto sDirs  = cnpy::npz_load(flameModel, "shapedirs");
-    // auto fArr   = cnpy::npz_load(flameModel, "faces");
+    auto fArr   = cnpy::npz_load(flameModel, "f");
 
     numVertices        = int(vTpl.shape[0]);
     numShapeParameters = int(sDirs.shape[2]);
-    // numFaces           = int(fArr.shape[0]);
+    numFaces           = int(fArr.shape[0]);
 
     // ------- 2 初始化 ------- 
     std::cout << "initializing the parameters...";
@@ -395,6 +395,17 @@ int main() {
     // 2.3 初始化betas参数
     shapeParameters.assign(numShapeParameters, 0.0);
 
+    // 2.4 初始化faces
+    int* f_data = fArr.data<int>();  // npz 中 f 应当是 int32
+    faces.resize(numFaces);
+    for (int i = 0; i < numFaces; ++i) {
+        faces[i] = Eigen::Vector3i(
+            f_data[3*i+0],
+            f_data[3*i+1],
+            f_data[3*i+2]
+        );
+    }
+
 
     // =============================================================================================================
 
@@ -423,9 +434,9 @@ int main() {
         problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
 
         // 4.2 初始化三个权重
-        const double weight_p2point = 0.5;
-        const double weight_p2plane = 0.5;
-        const double lambda = 1e-7; // lambda越大，每次可变空间越小
+        const double weight_p2point = 1.0;
+        const double weight_p2plane = 1.0;
+        const double lambda = 1e-8; // lambda越大，每次可变空间越小
 
         // 4.3 初始化法向量
         calculateNormals<double>(shapeParameters.data(), vertex_normals);
