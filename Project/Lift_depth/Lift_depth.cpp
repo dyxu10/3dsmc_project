@@ -158,7 +158,7 @@ Eigen::Matrix3f ReadIntrinsics(const std::string& path) {
 
 int main() {
 
-    std::string frame = "00028";
+    std::string frame = "00001";
     std::string colorPath = "../dataset/color/" + frame + ".png";
     std::string depthPath = "../dataset/depth/" + frame + ".png";
 

@@ -8,7 +8,7 @@
 
 // Read flame from npz file and exports to obj file. Generates random face if GENERATE_RANDOM_FACE set to true, generic face otherwise.
 // Generate optimized flame moodel if GENERATE_SPECIFIC_FACE set to true(it will read the optimized betas.txt).
-static const int ITERATION = 10; //用来记录这是第几轮优化（loss+knn算一轮）
+static const int ITERATION = 1; //用来记录这是第几轮优化（loss+knn算一轮）
 
 
 // Save vertices & faces to OBJ

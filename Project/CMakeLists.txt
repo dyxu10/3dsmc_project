@@ -72,3 +72,14 @@ target_link_libraries(optimize PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLI
 add_executable(read_flame optimizer/read_flame.cpp)
 target_include_directories(read_flame PRIVATE ${EIGEN3_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
 target_link_libraries(read_flame PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLIB::ZLIB)
+
+
+add_executable(optimize_face_only optimizer/optimize_face_only.cpp)
+target_include_directories(optimize_face_only PRIVATE ${EIGEN3_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
+target_link_libraries(optimize_face_only PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLIB::ZLIB ${CERES_LIBRARIES})
+
+
+add_executable(optimize_plane optimizer/optimize_plane.cpp)
+target_include_directories(optimize_plane PRIVATE ${EIGEN3_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
+target_link_libraries(optimize_plane PRIVATE Eigen3::Eigen OpenMP::OpenMP_CXX cnpy ZLIB::ZLIB ${CERES_LIBRARIES})
+
