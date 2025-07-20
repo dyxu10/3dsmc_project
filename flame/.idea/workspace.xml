@@ -5,9 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="56d847a2-0a76-4553-b2ad-29c3bf012a80" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../Project/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../Project/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Project/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Project/main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Project/out/output.off" beforeDir="false" afterPath="$PROJECT_DIR$/../Project/out/output.off" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/landmark_2d_468to105.py" beforeDir="false" afterPath="$PROJECT_DIR$/landmark_2d_468to105.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/FLAME2023/flame2023_no_jaw.pkl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj_to_off.py" beforeDir="false" afterPath="$PROJECT_DIR$/obj_to_off.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/write_landmark.py" beforeDir="false" afterPath="$PROJECT_DIR$/write_landmark.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/write_mesh.py" beforeDir="false" afterPath="$PROJECT_DIR$/write_mesh.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,24 +36,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.flame_landmark.executor": "Run",
-    "Python.flamemodel_to_2D.executor": "Run",
-    "Python.get_landmark.executor": "Run",
-    "Python.write_landmark.executor": "Run",
-    "Python.write_mesh.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "jueyu",
-    "last_opened_file_path": "/Users/chenjueyu/Documents/SS 2025 1.Sem RCI/3DScann/Final Project/3dsmc_project/flame",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.1.executor&quot;: &quot;Run&quot;,
+    &quot;Python.faceMesh.executor&quot;: &quot;Run&quot;,
+    &quot;Python.flame_landmark.executor&quot;: &quot;Run&quot;,
+    &quot;Python.flame_to_npz.executor&quot;: &quot;Run&quot;,
+    &quot;Python.flamemodel_to_2D.executor&quot;: &quot;Run&quot;,
+    &quot;Python.get_landmark.executor&quot;: &quot;Run&quot;,
+    &quot;Python.landmark_2d.executor&quot;: &quot;Run&quot;,
+    &quot;Python.landmark_2d_468to105.executor&quot;: &quot;Run&quot;,
+    &quot;Python.obj_to_off.executor&quot;: &quot;Run&quot;,
+    &quot;Python.visualize.executor&quot;: &quot;Run&quot;,
+    &quot;Python.write_landmark.executor&quot;: &quot;Run&quot;,
+    &quot;Python.write_mesh.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;jueyu&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/chenjueyu/Documents/SS 2025 1.Sem RCI/3DScann/Final Project/3dsmc_project/flame&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -68,7 +87,13 @@
       <updated>1751016591235</updated>
       <workItem from="1751016592312" duration="11061000" />
       <workItem from="1751267957357" duration="1271000" />
-      <workItem from="1751270810978" duration="2296000" />
+      <workItem from="1751270810978" duration="3005000" />
+      <workItem from="1751885251069" duration="8384000" />
+      <workItem from="1752168939685" duration="18937000" />
+      <workItem from="1752519553883" duration="4051000" />
+      <workItem from="1752660537498" duration="8918000" />
+      <workItem from="1752674412448" duration="5907000" />
+      <workItem from="1752914547059" duration="8610000" />
     </task>
     <servers />
   </component>
@@ -76,10 +101,17 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/flame$write_landmark.coverage" NAME="write_landmark Coverage Results" MODIFIED="1751270835735" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$write_landmark.coverage" NAME="write_landmark Coverage Results" MODIFIED="1752169214571" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$flame_to_npz.coverage" NAME="flame_to_npz Coverage Results" MODIFIED="1752931236037" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$obj_to_off.coverage" NAME="obj_to_off Coverage Results" MODIFIED="1752403992302" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$1.coverage" NAME="1 Coverage Results" MODIFIED="1751893014562" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$write_mesh.coverage" NAME="write_mesh Coverage Results" MODIFIED="1752916452828" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Flame$flame_landmark.coverage" NAME="flame_landmark Coverage Results" MODIFIED="1751017185151" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$faceMesh.coverage" NAME="faceMesh Coverage Results" MODIFIED="1752664242929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/flame$get_landmark.coverage" NAME="get_landmark Coverage Results" MODIFIED="1751270824888" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/flame$write_mesh.coverage" NAME="write_mesh Coverage Results" MODIFIED="1751270956122" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$visualize.coverage" NAME="visualize Coverage Results" MODIFIED="1751890590013" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$landmark_2d_468to105.coverage" NAME="landmark_2d_468to105 Coverage Results" MODIFIED="1753001830340" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/flame$landmark_2d.coverage" NAME="landmark_2d Coverage Results" MODIFIED="1751890620344" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Flame$flamemodel_to_2D.coverage" NAME="flamemodel_to_2D Coverage Results" MODIFIED="1751035672601" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

@@ -42,3 +42,19 @@ landmarks = np.array(landmarks)
 # Save landmarks to file
 save_landmarks("flame_mediapipe_landmarks.txt", landmarks)
 print(f"Saved {len(landmarks)} landmarks to flame_mediapipe_landmarks.txt")
+
+# Save triangle vertex indices for each landmark
+lmk_vertex_indices = faces[lmk_face_idx]  # shape: (N_landmarks, 3)
+
+# Save as human-readable .txt
+with open("flame_mediapipe_landmark_vertex_indices.txt", "w") as f:
+    for i, verts in enumerate(lmk_vertex_indices):
+        f.write(f"{i+1}: {verts[0]} {verts[1]} {verts[2]}\n")
+
+# Save as .npz (machine-readable)
+np.savez("flame_mediapipe_landmark_indices.npz",
+         face_indices=lmk_face_idx,
+         vertex_indices=lmk_vertex_indices,
+         bary_coords=lmk_b_coords)
+
+print(f"Saved landmark vertex indices and barycentric weights to flame_mediapipe_landmark_vertex_indices.txt and flame_mediapipe_landmark_indices.npz")
