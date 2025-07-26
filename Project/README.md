@@ -2,6 +2,9 @@
 
 This project implements a 3D face reconstruction pipeline using the FLAME model for shape modeling and optimization. The project consists of multiple executables that work together to process depth data, perform nearest neighbor searches, and optimize 3D face shapes.
 
+
+We use the docker env provided in the exercises.
+
 ## Project Structure
 
 ```
