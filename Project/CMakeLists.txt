@@ -24,9 +24,9 @@ target_include_directories(cnpy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/cnpy)
 target_link_libraries(cnpy PUBLIC ZLIB::ZLIB)
 
 # RT executables
-# add_executable(main RT/main.cpp)
-# target_include_directories(main PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-# target_link_libraries(main PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
+add_executable(rt RigidAlignment/rt.cpp)
+target_include_directories(rt PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(rt PRIVATE Eigen3::Eigen ${OpenCV_LIBS})
 
 # add_executable(Rigid_alignment_RT RT/Rigid_alignment_RT.cpp)
 # target_include_directories(Rigid_alignment_RT PRIVATE ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
