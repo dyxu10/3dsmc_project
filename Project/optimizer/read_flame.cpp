@@ -36,7 +36,7 @@ void save_obj(const std::string& path,
 int main() {
     bool GENERATE_RANDOM_FACE = false;
     bool GENERATE_SPECIFIC_FACE = true;
-    std::string file_number = "00023";
+    std::string file_number = "00052";
 
     std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
 

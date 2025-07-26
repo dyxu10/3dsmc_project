@@ -26,7 +26,7 @@ static int numVertices         = -1;
 static int numShapeParameters  = -1;
 static int numFaces            = -1;
 static int ITERATION           = 1; //用来记录这是第几轮优化（loss+knn算一轮）
-static const int MAX_ITERATION = 10; // 设置一共跑几轮
+static const int MAX_ITERATION = 7; // 设置一共跑几轮
 
 // —— knn用到的结构 ——
 struct KNN_Result{
@@ -354,7 +354,7 @@ int main() {
     std::cout << "reading the model...";
 
     // 1.1 读取目标点云，加载 FLAME 模型
-    std::string file_number = "00023";
+    std::string file_number = "00052";
     const std::string input_off = "../model/mesh/" + file_number + "/transformed_" + file_number + ".off";
     // Load target point cloud (transformed points)
     MatrixXf target = load_off_as_matrix(input_off);
