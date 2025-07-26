@@ -8,7 +8,7 @@
 
 // Read flame from npz file and exports to obj file. Generates random face if GENERATE_RANDOM_FACE set to true, generic face otherwise.
 // Generate optimized flame moodel if GENERATE_SPECIFIC_FACE set to true(it will read the optimized betas.txt).
-static const int ITERATION = 1; //用来记录这是第几轮优化（loss+knn算一轮）
+static const int ITERATION = 7; //用来记录这是第几轮优化（loss+knn算一轮）
 
 
 // Save vertices & faces to OBJ
@@ -36,6 +36,7 @@ void save_obj(const std::string& path,
 int main() {
     bool GENERATE_RANDOM_FACE = false;
     bool GENERATE_SPECIFIC_FACE = true;
+    std::string file_number = "00023";
 
     std::string npz_path = "../model/FLAME2023/flame2023_no_jaw.npz";
 
@@ -84,7 +85,7 @@ int main() {
 
     std::vector<double> betas;
     if (GENERATE_SPECIFIC_FACE) {
-        std::ifstream betaFile("../Data/optimize_test/test_betas_" + std::to_string(ITERATION) + ".txt");
+        std::ifstream betaFile("../model/mesh/" + file_number + "/" + "betas/" + std::to_string(ITERATION) + ".txt");
         double val;
         while (betaFile >> val) {
             betas.push_back(val);
@@ -164,7 +165,7 @@ int main() {
     std::cout << "First 3 points in 3xN matrix (columns 0,1,2):\n";
     std::cout << face_points.block(0, 0, 3, 3) << std::endl;
 
-    save_obj("../model/mesh/optimized_" + std::to_string(ITERATION) + ".obj", vertices, faces);
+    save_obj("../model/mesh/" + file_number + "/" + std::to_string(ITERATION) + ".obj", vertices, faces);
 
     return 0;
 }

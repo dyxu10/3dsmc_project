@@ -26,7 +26,7 @@ static int numVertices         = -1;
 static int numShapeParameters  = -1;
 static int numFaces            = -1;
 static int ITERATION           = 1; //用来记录这是第几轮优化（loss+knn算一轮）
-static const int MAX_ITERATION = 5; // 设置一共跑几轮
+static const int MAX_ITERATION = 10; // 设置一共跑几轮
 
 // —— knn用到的结构 ——
 struct KNN_Result{
@@ -275,7 +275,7 @@ std::vector<int> knn_search_parallel(const MatrixXf& source, const MatrixXf& tar
     return nn_indices;
 }
 
-KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
+KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target, float max_distance){
 
     //Source : FLAME mesh
     //Target : transformed points(our image point cloud)
@@ -316,7 +316,7 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
     // save_matrix_as_txt(source, nn_points, flame_indices);
 
     // Apply the same distance filter to create filtered matrices
-    float max_distance = 0.01f;
+
     std::vector<int> valid_indices;
     
     for (int i = 0; i < source.cols(); ++i) {
@@ -350,9 +350,12 @@ KNN_Result knn(Flame_Mesh& flame_mesh, const MatrixXf& target){
 
 int main() {
     // ------- 1 准备工作 ------- 
+
     std::cout << "reading the model...";
+
     // 1.1 读取目标点云，加载 FLAME 模型
-    const std::string input_off = "../model/mesh/transformed_00028.off";
+    std::string file_number = "00023";
+    const std::string input_off = "../model/mesh/" + file_number + "/transformed_" + file_number + ".off";
     // Load target point cloud (transformed points)
     MatrixXf target = load_off_as_matrix(input_off);
 
@@ -408,6 +411,10 @@ int main() {
 
 
     // =============================================================================================================
+    double weight_p2plane = 0.5;
+    double weight_p2point = 0.5;
+    double lambda = 1e-5;
+    float max_distance = 0.005f;//2mm
 
     while(ITERATION <= MAX_ITERATION){  
         
@@ -416,7 +423,7 @@ int main() {
 
         // 3.1 knn(vTpl,sDirs,shapeParameters)
         Flame_Mesh mesh(vTpl,sDirs,shapeParameters);
-        KNN_Result knn_result = knn(mesh, target);
+        KNN_Result knn_result = knn(mesh, target, max_distance);
 
         std::cout << "dimensions of source : " << knn_result.source.cols() << std::endl;
         std::cout << "dimensions of nn_points : " << knn_result.nn_points.cols() << std::endl;
@@ -434,9 +441,10 @@ int main() {
         problem.AddParameterBlock(shapeParameters.data(), numShapeParameters);
 
         // 4.2 初始化三个权重
-        const double weight_p2point = 1.0;
-        const double weight_p2plane = 1.0;
-        const double lambda = 1e-8; // lambda越大，每次可变空间越小
+        weight_p2point += 0.1;
+        weight_p2plane += 0.1;
+         // lambda越大，每次可变空间越小
+        lambda -= 1e-6;
 
         // 4.3 初始化法向量
         calculateNormals<double>(shapeParameters.data(), vertex_normals);
@@ -491,10 +499,10 @@ int main() {
 
 
         //  ------- 5 保存betas ------- 
-        std::ofstream betaFile("../Data/optimize_test/test_betas_" + std::to_string(ITERATION) + ".txt");
+        std::ofstream betaFile("../model/mesh/" + file_number + "/" + "betas/" + std::to_string(ITERATION) + ".txt");
         for (double b : shapeParameters) betaFile << b << "\n";
         betaFile.close();
-        std::cout << "Saved shape parameters to test_betas_" + std::to_string(ITERATION) + ".txt\n";
+        std::cout << "Saved shape parameters to betas/" + file_number + "/" + std::to_string(ITERATION) + ".txt\n";
 
         ITERATION ++;
     }
