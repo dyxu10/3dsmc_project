@@ -5,6 +5,9 @@ This project implements a 3D face reconstruction pipeline using the FLAME model 
 
 We use the docker env provided in the exercises.
 
+Code can also be downloaded via the githib link:
+https://github.com/dyxu10/3dsmc_project
+
 ## Project Structure
 
 ```
